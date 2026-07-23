@@ -1,0 +1,5 @@
+#include "../../Flutter/Flutter-Release.xcconfig"
+#include "Warnings.xcconfig"
+
+// Developer ID distribution and Apple notarization require Hardened Runtime.
+ENABLE_HARDENED_RUNTIME = YES

@@ -1,0 +1,208 @@
+import 'dart:async';
+
+import 'package:flutter/material.dart';
+
+import '../core/platform/window_bridge.dart';
+import '../features/settings/domain/app_settings.dart';
+import '../features/settings/presentation/settings_view_model.dart';
+import '../features/todos/presentation/todo_panel.dart';
+import '../features/todos/presentation/todo_view_model.dart';
+import '../features/todos/presentation/widgets/floating_todo_icon.dart';
+import 'theme/floatick_theme.dart';
+
+class FloatickApp extends StatelessWidget {
+  const FloatickApp({
+    required this.controller,
+    required this.settingsController,
+    required this.windowBridge,
+    super.key,
+  });
+
+  final TodoViewModel controller;
+  final SettingsViewModel settingsController;
+  final WindowBridge windowBridge;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: settingsController,
+      builder: (context, _) {
+        return MaterialApp(
+          title: 'Floatick',
+          debugShowCheckedModeBanner: false,
+          theme: buildFloatickTheme(Brightness.light),
+          darkTheme: buildFloatickTheme(Brightness.dark),
+          themeMode: switch (settingsController.themePreference) {
+            AppThemePreference.system => ThemeMode.system,
+            AppThemePreference.light => ThemeMode.light,
+            AppThemePreference.dark => ThemeMode.dark,
+          },
+          home: _FloatickShell(
+            controller: controller,
+            settingsController: settingsController,
+            windowBridge: windowBridge,
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _FloatickShell extends StatefulWidget {
+  const _FloatickShell({
+    required this.controller,
+    required this.settingsController,
+    required this.windowBridge,
+  });
+
+  final TodoViewModel controller;
+  final SettingsViewModel settingsController;
+  final WindowBridge windowBridge;
+
+  @override
+  State<_FloatickShell> createState() => _FloatickShellState();
+}
+
+class _FloatickShellState extends State<_FloatickShell> {
+  static const _motionDuration = Duration(milliseconds: 220);
+
+  bool _isExpanded = false;
+  bool _isChangingWindow = false;
+  WindowExpansionAnchor _expansionAnchor = WindowExpansionAnchor.topRight;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.windowBridge.setExpandRequestHandler(_handleNativeExpandRequest);
+  }
+
+  @override
+  void didUpdateWidget(covariant _FloatickShell oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.windowBridge != widget.windowBridge) {
+      oldWidget.windowBridge.setExpandRequestHandler(null);
+      widget.windowBridge.setExpandRequestHandler(_handleNativeExpandRequest);
+    }
+  }
+
+  @override
+  void dispose() {
+    widget.windowBridge.setExpandRequestHandler(null);
+    super.dispose();
+  }
+
+  void _handleNativeExpandRequest(WindowExpansionAnchor expansionAnchor) {
+    unawaited(_setExpanded(true, requestedAnchor: expansionAnchor));
+  }
+
+  Future<void> _setExpanded(
+    bool expanded, {
+    WindowExpansionAnchor? requestedAnchor,
+  }) async {
+    if (_isChangingWindow || _isExpanded == expanded) {
+      return;
+    }
+
+    final reduceMotion =
+        MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+    final motionDuration = reduceMotion ? Duration.zero : _motionDuration;
+    setState(() => _isChangingWindow = true);
+
+    try {
+      if (expanded) {
+        final expansionAnchor =
+            requestedAnchor ??
+            await widget.windowBridge.preferredExpansionAnchor();
+        if (!mounted) {
+          return;
+        }
+        setState(() => _expansionAnchor = expansionAnchor);
+        await WidgetsBinding.instance.endOfFrame;
+        await widget.windowBridge.setExpanded(true);
+        await WidgetsBinding.instance.endOfFrame;
+        if (!mounted) {
+          return;
+        }
+        setState(() => _isExpanded = true);
+      } else {
+        setState(() => _isExpanded = false);
+        await WidgetsBinding.instance.endOfFrame;
+        if (motionDuration > Duration.zero) {
+          await Future<void>.delayed(motionDuration);
+        }
+        await widget.windowBridge.setExpanded(false);
+      }
+    } on Object catch (error, stackTrace) {
+      debugPrint('Floatick could not change the native window: $error');
+      debugPrintStack(stackTrace: stackTrace);
+      if (mounted) {
+        setState(() => _isExpanded = !expanded);
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isChangingWindow = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
+    final transitionDuration = reduceMotion ? Duration.zero : _motionDuration;
+    final expansionAlignment = switch (_expansionAnchor) {
+      WindowExpansionAnchor.topLeft => Alignment.topLeft,
+      WindowExpansionAnchor.topRight => Alignment.topRight,
+      WindowExpansionAnchor.bottomLeft => Alignment.bottomLeft,
+      WindowExpansionAnchor.bottomRight => Alignment.bottomRight,
+    };
+
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      body: SizedBox.expand(
+        child: AnimatedSwitcher(
+          duration: transitionDuration,
+          reverseDuration: transitionDuration,
+          switchInCurve: Curves.easeOutCubic,
+          switchOutCurve: Curves.easeInCubic,
+          transitionBuilder: (child, animation) {
+            final curvedAnimation = CurvedAnimation(
+              parent: animation,
+              curve: Curves.easeOutCubic,
+              reverseCurve: Curves.easeInCubic,
+            );
+            final isPanel = child.key == const ValueKey('todo-panel');
+            final scaleAnimation = Tween<double>(
+              begin: isPanel ? 0.80 : 0.92,
+              end: 1,
+            ).animate(curvedAnimation);
+            return FadeTransition(
+              opacity: curvedAnimation,
+              child: ScaleTransition(
+                scale: scaleAnimation,
+                alignment: expansionAlignment,
+                child: child,
+              ),
+            );
+          },
+          child: _isExpanded
+              ? TodoPanel(
+                  key: const ValueKey('todo-panel'),
+                  controller: widget.controller,
+                  settingsController: widget.settingsController,
+                  windowBridge: widget.windowBridge,
+                  onCollapse: () => unawaited(_setExpanded(false)),
+                )
+              : Align(
+                  key: const ValueKey('collapsed-icon-alignment'),
+                  alignment: expansionAlignment,
+                  child: FloatingTodoIcon(
+                    key: const ValueKey('floating-todo-icon'),
+                    activeCount: widget.controller.activeCount,
+                    onOpen: () => unawaited(_setExpanded(true)),
+                  ),
+                ),
+        ),
+      ),
+    );
+  }
+}

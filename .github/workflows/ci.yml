@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+env:
+  FLUTTER_VERSION: 3.44.7
+
+jobs:
+  test:
+    name: Analyze and test
+    runs-on: macos-15
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Install Flutter
+        shell: bash
+        run: |
+          git clone \
+            --branch "$FLUTTER_VERSION" \
+            --depth 1 \
+            https://github.com/flutter/flutter.git \
+            "$RUNNER_TEMP/flutter"
+          echo "$RUNNER_TEMP/flutter/bin" >> "$GITHUB_PATH"
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Verify formatting
+        run: dart format --output=none --set-exit-if-changed lib test
+
+      - name: Analyze
+        run: flutter analyze
+
+      - name: Test
+        run: flutter test

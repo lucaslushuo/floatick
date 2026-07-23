@@ -1,0 +1,80 @@
+import 'package:flutter/material.dart';
+
+abstract final class FloatickColors {
+  static const teal = Color(0xFF0F8F83);
+  static const tealBright = Color(0xFF22B8A7);
+  static const orange = Color(0xFFF17842);
+  static const ink = Color(0xFF172126);
+  static const mutedInk = Color(0xFF657178);
+  static const darkSurface = Color(0xFF182125);
+  static const darkSurfaceElevated = Color(0xFF222D31);
+}
+
+ThemeData buildFloatickTheme(Brightness brightness) {
+  final isDark = brightness == Brightness.dark;
+  final colorScheme =
+      ColorScheme.fromSeed(
+        seedColor: FloatickColors.teal,
+        brightness: brightness,
+      ).copyWith(
+        primary: isDark ? FloatickColors.tealBright : FloatickColors.teal,
+        secondary: FloatickColors.orange,
+        surface: isDark ? FloatickColors.darkSurface : const Color(0xFFF9FBFA),
+        onSurface: isDark ? const Color(0xFFF1F5F3) : FloatickColors.ink,
+      );
+
+  return ThemeData(
+    useMaterial3: true,
+    brightness: brightness,
+    colorScheme: colorScheme,
+    fontFamily: '.AppleSystemUIFont',
+    platform: TargetPlatform.macOS,
+    scaffoldBackgroundColor: Colors.transparent,
+    canvasColor: Colors.transparent,
+    splashFactory: NoSplash.splashFactory,
+    visualDensity: VisualDensity.standard,
+    textSelectionTheme: TextSelectionThemeData(
+      cursorColor: colorScheme.primary,
+      selectionColor: colorScheme.primary.withValues(alpha: 0.22),
+      selectionHandleColor: colorScheme.primary,
+    ),
+    inputDecorationTheme: InputDecorationTheme(
+      filled: true,
+      fillColor: isDark
+          ? Colors.white.withValues(alpha: 0.055)
+          : const Color(0xFFF0F4F2),
+      isDense: true,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 13, vertical: 12),
+      hintStyle: TextStyle(
+        color: isDark
+            ? Colors.white.withValues(alpha: 0.44)
+            : FloatickColors.mutedInk,
+        fontSize: 13,
+      ),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide.none,
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(
+          color: isDark
+              ? Colors.white.withValues(alpha: 0.06)
+              : Colors.black.withValues(alpha: 0.045),
+        ),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: colorScheme.primary, width: 1.5),
+      ),
+    ),
+    tooltipTheme: TooltipThemeData(
+      waitDuration: const Duration(milliseconds: 450),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF313B3F) : const Color(0xFF253034),
+        borderRadius: BorderRadius.circular(7),
+      ),
+      textStyle: const TextStyle(color: Colors.white, fontSize: 12),
+    ),
+  );
+}
