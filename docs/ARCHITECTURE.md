@@ -24,6 +24,9 @@ lib/
   app/
     floatick_app.dart
     theme/
+  l10n/
+    app_en.arb
+    app_zh.arb
   core/
     platform/
     storage/
@@ -51,7 +54,9 @@ tool/
 - `data`: local persistence and serialization boundaries.
 - `presentation`: Views and `ChangeNotifier` ViewModels.
 - `core/platform`: typed wrappers around native platform channels.
-- `core/storage`: shared, no-overwrite migration for local app files.
+- `core/storage`: shared storage failure types used at repository boundaries.
+- `l10n`: English source copy, Simplified Chinese translations, and generated
+  Flutter localization accessors.
 - `macos/Runner`: transparent floating window behavior only; todo data does not
   cross the platform channel.
 
@@ -61,9 +66,8 @@ tool/
 own file I/O and JSON compatibility. Repositories are constructor-injected so
 state behavior can be tested without touching the user's home directory.
 
-The active storage directory is `~/.floatick`. On first load, each repository
-moves its corresponding legacy file from `~/.flow2do` only when the destination
-file does not already exist. Existing Floatick data always wins.
+The only storage directory is `~/.floatick`. Repositories create it on first
+load and never read or write another hidden application directory.
 
 Writes are serialized by `TodoViewModel` to prevent overlapping mutations from
 losing updates. A write failure leaves the last persisted in-memory state

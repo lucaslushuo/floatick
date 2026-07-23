@@ -363,6 +363,23 @@ final class MainFlutterWindow: NSWindow {
   }
 }
 
+private enum NativeCopy {
+  private static var usesChinese: Bool {
+    guard let preferredLanguage = Locale.preferredLanguages.first else {
+      return false
+    }
+    return preferredLanguage.lowercased().hasPrefix("zh")
+  }
+
+  static var openFloatick: String {
+    usesChinese ? "打开 Floatick" : "Open Floatick"
+  }
+
+  static var quitFloatick: String {
+    usesChinese ? "退出 Floatick" : "Quit Floatick"
+  }
+}
+
 private final class CollapsedDragOverlayView: NSView {
   private static let dragThreshold: CGFloat = 4
 
@@ -378,7 +395,7 @@ private final class CollapsedDragOverlayView: NSView {
     super.init(frame: frameRect)
     setAccessibilityElement(true)
     setAccessibilityRole(.button)
-    setAccessibilityLabel("打开 Floatick")
+    setAccessibilityLabel(NativeCopy.openFloatick)
   }
 
   @available(*, unavailable)
@@ -395,7 +412,7 @@ private final class CollapsedDragOverlayView: NSView {
     menu.autoenablesItems = false
 
     let quitItem = NSMenuItem(
-      title: "退出 Floatick",
+      title: NativeCopy.quitFloatick,
       action: #selector(NSApplication.terminate(_:)),
       keyEquivalent: "q"
     )

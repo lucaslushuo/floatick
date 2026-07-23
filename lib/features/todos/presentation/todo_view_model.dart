@@ -3,6 +3,7 @@ import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 
+import '../../../core/storage/storage_failure.dart';
 import '../data/todo_repository.dart';
 import '../domain/todo_item.dart';
 
@@ -23,12 +24,12 @@ class TodoViewModel extends ChangeNotifier {
   final TodoIdGenerator _idGenerator;
 
   List<TodoItem> _items = <TodoItem>[];
-  String? _errorMessage;
+  StorageFailure? _error;
   bool _isLoading = false;
   Future<void> _mutationQueue = Future<void>.value();
 
   List<TodoItem> get items => List<TodoItem>.unmodifiable(_items);
-  String? get errorMessage => _errorMessage;
+  StorageFailure? get error => _error;
   bool get isLoading => _isLoading;
   String get storageDirectoryPath => File(_repository.storagePath).parent.path;
 
@@ -63,13 +64,13 @@ class TodoViewModel extends ChangeNotifier {
 
   Future<void> load() async {
     _isLoading = true;
-    _errorMessage = null;
+    _error = null;
     notifyListeners();
 
     try {
       _items = await _repository.load();
-    } on TodoStorageException catch (error) {
-      _errorMessage = error.message;
+    } on StorageFailure catch (error) {
+      _error = error;
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -128,10 +129,10 @@ class TodoViewModel extends ChangeNotifier {
   }
 
   void dismissError() {
-    if (_errorMessage == null) {
+    if (_error == null) {
       return;
     }
-    _errorMessage = null;
+    _error = null;
     notifyListeners();
   }
 
@@ -171,9 +172,9 @@ class TodoViewModel extends ChangeNotifier {
     try {
       await _repository.save(updatedItems);
       _items = updatedItems;
-      _errorMessage = null;
-    } on TodoStorageException catch (error) {
-      _errorMessage = error.message;
+      _error = null;
+    } on StorageFailure catch (error) {
+      _error = error;
     }
     notifyListeners();
   }

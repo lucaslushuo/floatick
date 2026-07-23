@@ -5,6 +5,8 @@ import 'package:flutter/services.dart';
 
 import '../../../core/platform/window_bridge.dart';
 import '../../../core/ui/floatick_brand_mark.dart';
+import '../../../l10n/l10n.dart';
+import '../../../l10n/storage_failure_localizations.dart';
 import '../../settings/presentation/settings_drawer.dart';
 import '../../settings/presentation/settings_view_model.dart';
 import '../domain/todo_item.dart';
@@ -212,8 +214,10 @@ class _TodoPanelState extends State<TodoPanel> {
                                           decoration: InputDecoration(
                                             hintText:
                                                 _scope == TodoListScope.active
-                                                ? '搜索待办'
-                                                : '搜索归档',
+                                                ? context.l10n.searchTodosHint
+                                                : context
+                                                      .l10n
+                                                      .searchArchiveHint,
                                             prefixIcon: const Icon(
                                               Icons.search_rounded,
                                               size: 19,
@@ -221,7 +225,9 @@ class _TodoPanelState extends State<TodoPanel> {
                                             suffixIcon: _query.isEmpty
                                                 ? null
                                                 : IconButton(
-                                                    tooltip: '清除搜索',
+                                                    tooltip: context
+                                                        .l10n
+                                                        .clearSearchTooltip,
                                                     onPressed: () {
                                                       _searchController.clear();
                                                       setState(
@@ -251,14 +257,15 @@ class _TodoPanelState extends State<TodoPanel> {
                                                       TextInputAction.done,
                                                   onSubmitted: (_) =>
                                                       unawaited(_addTodo()),
-                                                  decoration:
-                                                      const InputDecoration(
-                                                        hintText: '添加一件要完成的事…',
-                                                        prefixIcon: Icon(
-                                                          Icons.add_rounded,
-                                                          size: 20,
-                                                        ),
-                                                      ),
+                                                  decoration: InputDecoration(
+                                                    hintText: context
+                                                        .l10n
+                                                        .addTodoHint,
+                                                    prefixIcon: const Icon(
+                                                      Icons.add_rounded,
+                                                      size: 20,
+                                                    ),
+                                                  ),
                                                 ),
                                               ),
                                               const SizedBox(width: 9),
@@ -273,9 +280,12 @@ class _TodoPanelState extends State<TodoPanel> {
                                       ],
                                     ),
                                   ),
-                                  if (widget.controller.errorMessage != null)
+                                  if (widget.controller.error != null)
                                     _ErrorBanner(
-                                      message: widget.controller.errorMessage!,
+                                      message: context.l10n
+                                          .messageForStorageFailure(
+                                            widget.controller.error!,
+                                          ),
                                       onDismiss: widget.controller.dismissError,
                                     ),
                                   Divider(
@@ -382,6 +392,7 @@ class _PanelHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final onSurface = Theme.of(context).colorScheme.onSurface;
+    final localizations = context.l10n;
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 18, 12, 16),
       child: Row(
@@ -390,7 +401,9 @@ class _PanelHeader extends StatelessWidget {
           const SizedBox(width: 11),
           Expanded(
             child: Text(
-              activeCount == 0 ? '今天已经清空' : '$activeCount 项待完成',
+              activeCount == 0
+                  ? localizations.allClearToday
+                  : localizations.activeTodoCount(activeCount),
               style: TextStyle(
                 color: onSurface.withValues(alpha: 0.53),
                 fontSize: 12,
@@ -399,12 +412,12 @@ class _PanelHeader extends StatelessWidget {
           ),
           IconButton(
             key: const Key('settings-button'),
-            tooltip: '设置',
+            tooltip: localizations.settingsTooltip,
             onPressed: onOpenSettings,
             icon: const Icon(Icons.settings_outlined, size: 19),
           ),
           IconButton(
-            tooltip: '收起（Esc）',
+            tooltip: localizations.collapseTooltip,
             onPressed: onCollapse,
             icon: const Icon(Icons.unfold_less_rounded, size: 20),
           ),
@@ -453,14 +466,14 @@ class _ScopePicker extends StatelessWidget {
       child: Row(
         children: <Widget>[
           _ScopeButton(
-            label: '待办',
+            label: context.l10n.activeScopeLabel,
             count: activeCount,
             selected: scope == TodoListScope.active,
             reduceMotion: reduceMotion,
             onPressed: () => onChanged(TodoListScope.active),
           ),
           _ScopeButton(
-            label: '归档',
+            label: context.l10n.archiveScopeLabel,
             count: archivedCount,
             selected: scope == TodoListScope.archived,
             reduceMotion: reduceMotion,
@@ -550,10 +563,10 @@ class _AddButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return Semantics(
       button: true,
-      label: '添加待办',
+      label: context.l10n.addTodoSemanticsLabel,
       child: IconButton.filled(
         key: const Key('add-todo'),
-        tooltip: '添加待办（Return）',
+        tooltip: context.l10n.addTodoTooltip,
         onPressed: isAdding ? null : onPressed,
         style: IconButton.styleFrom(
           minimumSize: const Size.square(42),
@@ -611,7 +624,7 @@ class _ErrorBanner extends StatelessWidget {
             ),
           ),
           IconButton(
-            tooltip: '关闭',
+            tooltip: context.l10n.dismissErrorTooltip,
             onPressed: onDismiss,
             icon: const Icon(Icons.close_rounded, size: 17),
           ),
@@ -643,7 +656,7 @@ class _TodoList extends StatelessWidget {
       );
     }
 
-    final entries = _buildEntries();
+    final entries = _buildEntries(context);
     if (entries.isEmpty) {
       return _EmptyList(scope: scope, hasQuery: query.isNotEmpty);
     }
@@ -670,7 +683,7 @@ class _TodoList extends StatelessWidget {
     );
   }
 
-  List<_ListEntry> _buildEntries() {
+  List<_ListEntry> _buildEntries(BuildContext context) {
     final archived = scope == TodoListScope.archived;
     final items = controller.itemsForView(archived: archived, query: query);
 
@@ -687,7 +700,7 @@ class _TodoList extends StatelessWidget {
       final date = relevantDate(item);
       final day = DateTime(date.year, date.month, date.day);
       if (day != previousDay) {
-        entries.add(_DateEntry(_formatDay(day)));
+        entries.add(_DateEntry(_formatDay(context, day)));
         previousDay = day;
       }
       entries.add(_ItemEntry(item));
@@ -854,6 +867,7 @@ class _TodoRowState extends State<_TodoRow> {
   @override
   Widget build(BuildContext context) {
     final item = widget.item;
+    final localizations = context.l10n;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final onSurface = Theme.of(context).colorScheme.onSurface;
     final reduceMotion = MediaQuery.disableAnimationsOf(context);
@@ -873,7 +887,9 @@ class _TodoRowState extends State<_TodoRow> {
       child: Semantics(
         container: true,
         label: item.title,
-        value: item.isCompleted ? '已完成' : '未完成',
+        value: item.isCompleted
+            ? localizations.completedStatus
+            : localizations.incompleteStatus,
         child: MouseRegion(
           onEnter: (_) => setState(() => _isHovered = true),
           onExit: (_) => setState(() => _isHovered = false),
@@ -895,7 +911,9 @@ class _TodoRowState extends State<_TodoRow> {
               children: <Widget>[
                 if (!widget.archivedScope)
                   Tooltip(
-                    message: item.isCompleted ? '标记为未完成' : '标记为已完成',
+                    message: item.isCompleted
+                        ? localizations.markIncompleteTooltip
+                        : localizations.markCompleteTooltip,
                     child: Semantics(
                       button: true,
                       checked: item.isCompleted,
@@ -989,7 +1007,7 @@ class _TodoRowState extends State<_TodoRow> {
                                   horizontal: 9,
                                   vertical: 7,
                                 ),
-                                hintText: '待办内容不能为空',
+                                hintText: localizations.todoTitleRequiredHint,
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(8),
                                 ),
@@ -1017,6 +1035,7 @@ class _TodoRowState extends State<_TodoRow> {
                       const SizedBox(height: 3),
                       Text(
                         _formatTime(
+                          context,
                           widget.archivedScope
                               ? (item.archivedAt ?? item.createdAt)
                               : item.createdAt,
@@ -1042,7 +1061,7 @@ class _TodoRowState extends State<_TodoRow> {
                                 key: ValueKey<String>(
                                   'save-todo-${widget.item.id}',
                                 ),
-                                tooltip: '保存',
+                                tooltip: localizations.saveTooltip,
                                 onPressed: canSave
                                     ? () => unawaited(_saveEditing())
                                     : null,
@@ -1067,7 +1086,7 @@ class _TodoRowState extends State<_TodoRow> {
                                     key: ValueKey<String>(
                                       'edit-todo-${widget.item.id}',
                                     ),
-                                    tooltip: '编辑',
+                                    tooltip: localizations.editTooltip,
                                     onPressed: _startEditing,
                                     padding: EdgeInsets.zero,
                                     icon: const Icon(
@@ -1082,8 +1101,10 @@ class _TodoRowState extends State<_TodoRow> {
                         dimension: 34,
                         child: IconButton(
                           tooltip: _isEditing
-                              ? '取消编辑'
-                              : (widget.archivedScope ? '恢复到待办' : '归档'),
+                              ? localizations.cancelEditTooltip
+                              : (widget.archivedScope
+                                    ? localizations.restoreTooltip
+                                    : localizations.archiveTooltip),
                           onPressed: _isSaving
                               ? null
                               : (_isEditing
@@ -1124,6 +1145,7 @@ class _EmptyList extends StatelessWidget {
   Widget build(BuildContext context) {
     final onSurface = Theme.of(context).colorScheme.onSurface;
     final isArchive = scope == TodoListScope.archived;
+    final localizations = context.l10n;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
@@ -1151,7 +1173,11 @@ class _EmptyList extends StatelessWidget {
             ),
             const SizedBox(height: 15),
             Text(
-              hasQuery ? '没有匹配的结果' : (isArchive ? '归档还是空的' : '没有待办，享受此刻'),
+              hasQuery
+                  ? localizations.noSearchResultsTitle
+                  : (isArchive
+                        ? localizations.emptyArchiveTitle
+                        : localizations.emptyTodosTitle),
               textAlign: TextAlign.center,
               style: TextStyle(
                 color: onSurface.withValues(alpha: 0.72),
@@ -1162,8 +1188,10 @@ class _EmptyList extends StatelessWidget {
             const SizedBox(height: 5),
             Text(
               hasQuery
-                  ? '换一个关键词试试'
-                  : (isArchive ? '归档的事项会保存在这里' : '在上方随时添加新事项'),
+                  ? localizations.noSearchResultsMessage
+                  : (isArchive
+                        ? localizations.emptyArchiveMessage
+                        : localizations.emptyTodosMessage),
               textAlign: TextAlign.center,
               style: TextStyle(
                 color: onSurface.withValues(alpha: 0.40),
@@ -1177,26 +1205,26 @@ class _EmptyList extends StatelessWidget {
   }
 }
 
-String _formatDay(DateTime day) {
+String _formatDay(BuildContext context, DateTime day) {
   final now = DateTime.now();
   final today = DateTime(now.year, now.month, now.day);
   final difference = today.difference(day).inDays;
   if (difference == 0) {
-    return '今天';
+    return context.l10n.todayLabel;
   }
   if (difference == 1) {
-    return '昨天';
+    return context.l10n.yesterdayLabel;
   }
 
-  const weekdays = <String>['一', '二', '三', '四', '五', '六', '日'];
-  return '${day.year}年${day.month}月${day.day}日 · 周${weekdays[day.weekday - 1]}';
+  return MaterialLocalizations.of(context).formatFullDate(day);
 }
 
-String _formatTime(DateTime date) {
+String _formatTime(BuildContext context, DateTime date) {
   final local = date.toLocal();
-  final hour = local.hour.toString().padLeft(2, '0');
-  final minute = local.minute.toString().padLeft(2, '0');
-  return '$hour:$minute';
+  return MaterialLocalizations.of(context).formatTimeOfDay(
+    TimeOfDay.fromDateTime(local),
+    alwaysUse24HourFormat: MediaQuery.alwaysUse24HourFormatOf(context),
+  );
 }
 
 class _CollapseIntent extends Intent {

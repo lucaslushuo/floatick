@@ -8,6 +8,7 @@ import '../features/settings/presentation/settings_view_model.dart';
 import '../features/todos/presentation/todo_panel.dart';
 import '../features/todos/presentation/todo_view_model.dart';
 import '../features/todos/presentation/widgets/floating_todo_icon.dart';
+import '../l10n/app_localizations.dart';
 import 'theme/floatick_theme.dart';
 
 class FloatickApp extends StatelessWidget {
@@ -15,12 +16,14 @@ class FloatickApp extends StatelessWidget {
     required this.controller,
     required this.settingsController,
     required this.windowBridge,
+    this.locale,
     super.key,
   });
 
   final TodoViewModel controller;
   final SettingsViewModel settingsController;
   final WindowBridge windowBridge;
+  final Locale? locale;
 
   @override
   Widget build(BuildContext context) {
@@ -28,8 +31,12 @@ class FloatickApp extends StatelessWidget {
       animation: settingsController,
       builder: (context, _) {
         return MaterialApp(
-          title: 'Floatick',
+          onGenerateTitle: (context) =>
+              AppLocalizations.of(context).applicationTitle,
           debugShowCheckedModeBanner: false,
+          locale: locale,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           theme: buildFloatickTheme(Brightness.light),
           darkTheme: buildFloatickTheme(Brightness.dark),
           themeMode: switch (settingsController.themePreference) {

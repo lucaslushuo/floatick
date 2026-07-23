@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../app/theme/floatick_theme.dart';
 import '../../../../core/ui/floatick_brand_mark.dart';
+import '../../../../l10n/l10n.dart';
 
 class FloatingTodoIcon extends StatelessWidget {
   const FloatingTodoIcon({
@@ -21,8 +22,8 @@ class FloatingTodoIcon extends StatelessWidget {
     return RepaintBoundary(
       child: Semantics(
         button: true,
-        label: '打开 Floatick',
-        hint: '拖动可移动位置，点击展开待办列表',
+        label: context.l10n.openApp,
+        hint: context.l10n.openAppHint,
         child: MouseRegion(
           cursor: SystemMouseCursors.grab,
           child: GestureDetector(

@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../../l10n/l10n.dart';
+import '../../../l10n/storage_failure_localizations.dart';
 import '../domain/app_settings.dart';
 import 'settings_view_model.dart';
 
@@ -56,7 +58,7 @@ class SettingsDrawer extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
                     Text(
-                      '外观',
+                      context.l10n.appearanceSectionTitle,
                       style: theme.textTheme.titleSmall?.copyWith(
                         fontWeight: FontWeight.w600,
                       ),
@@ -65,7 +67,7 @@ class SettingsDrawer extends StatelessWidget {
                     _ThemePreferencePicker(viewModel: viewModel),
                     const SizedBox(height: 28),
                     Text(
-                      '工作目录',
+                      context.l10n.workingDirectorySectionTitle,
                       style: theme.textTheme.titleSmall?.copyWith(
                         fontWeight: FontWeight.w600,
                       ),
@@ -74,7 +76,9 @@ class SettingsDrawer extends StatelessWidget {
                     SelectableText(
                       workingDirectoryPath,
                       key: const Key('storage-directory-path'),
-                      semanticsLabel: '工作目录：$workingDirectoryPath',
+                      semanticsLabel: context.l10n.workingDirectorySemantics(
+                        workingDirectoryPath,
+                      ),
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: theme.colorScheme.onSurface.withValues(
                           alpha: 0.62,
@@ -83,10 +87,12 @@ class SettingsDrawer extends StatelessWidget {
                         height: 1.4,
                       ),
                     ),
-                    if (viewModel.errorMessage != null) ...[
+                    if (viewModel.error != null) ...[
                       const SizedBox(height: 12),
                       _SettingsError(
-                        message: viewModel.errorMessage!,
+                        message: context.l10n.messageForStorageFailure(
+                          viewModel.error!,
+                        ),
                         onDismiss: viewModel.dismissError,
                       ),
                     ],
@@ -115,7 +121,7 @@ class _SettingsHeader extends StatelessWidget {
         children: <Widget>[
           Expanded(
             child: Text(
-              '设置',
+              context.l10n.settingsTitle,
               style: Theme.of(
                 context,
               ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
@@ -124,7 +130,7 @@ class _SettingsHeader extends StatelessWidget {
           IconButton(
             key: const Key('settings-close'),
             focusNode: closeFocusNode,
-            tooltip: '关闭设置',
+            tooltip: context.l10n.closeSettingsTooltip,
             onPressed: onClose,
             icon: const Icon(Icons.close_rounded, size: 18),
           ),
@@ -174,10 +180,20 @@ class _ThemeIconButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final localizations = context.l10n;
     final (tooltip, icon) = switch (preference) {
-      AppThemePreference.system => ('跟随系统', Icons.brightness_auto_rounded),
-      AppThemePreference.light => ('浅色主题', Icons.light_mode_rounded),
-      AppThemePreference.dark => ('深色主题', Icons.dark_mode_rounded),
+      AppThemePreference.system => (
+        localizations.themeSystemTooltip,
+        Icons.brightness_auto_rounded,
+      ),
+      AppThemePreference.light => (
+        localizations.themeLightTooltip,
+        Icons.light_mode_rounded,
+      ),
+      AppThemePreference.dark => (
+        localizations.themeDarkTooltip,
+        Icons.dark_mode_rounded,
+      ),
     };
 
     return Semantics(
@@ -245,7 +261,7 @@ class _SettingsError extends StatelessWidget {
               ),
             ),
             IconButton(
-              tooltip: '关闭错误提示',
+              tooltip: context.l10n.dismissErrorTooltip,
               onPressed: onDismiss,
               visualDensity: VisualDensity.compact,
               icon: const Icon(Icons.close_rounded, size: 15),

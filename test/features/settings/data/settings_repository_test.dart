@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:floatick/core/storage/storage_failure.dart';
 import 'package:floatick/features/settings/data/settings_repository.dart';
 import 'package:floatick/features/settings/domain/app_settings.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -52,39 +53,13 @@ void main() {
     await expectLater(
       repository.load(),
       throwsA(
-        isA<SettingsStorageException>().having(
-          (error) => error.message,
-          'message',
-          contains('damaged'),
+        isA<StorageFailure>().having(
+          (error) => error.kind,
+          'kind',
+          StorageFailureKind.invalidData,
         ),
       ),
     );
     expect(await file.readAsString(), damagedContent);
-  });
-
-  test('legacy settings move to the Floatick directory', () async {
-    final legacyDirectory = Directory('${temporaryDirectory.path}/.flow2do');
-    final destinationDirectory = Directory(
-      '${temporaryDirectory.path}/.floatick',
-    );
-    final legacyFile = File('${legacyDirectory.path}/settings.json');
-    await legacyDirectory.create(recursive: true);
-    await legacyFile.writeAsString(
-      jsonEncode(<String, Object?>{'version': 1, 'theme': 'dark'}),
-    );
-    repository = LocalSettingsRepository(
-      rootDirectory: destinationDirectory,
-      legacyRootDirectory: legacyDirectory,
-    );
-
-    final settings = await repository.load();
-
-    expect(settings.themePreference, AppThemePreference.dark);
-    expect(
-      repository.storagePath,
-      '${destinationDirectory.path}/settings.json',
-    );
-    expect(await File(repository.storagePath).exists(), isTrue);
-    expect(await legacyFile.exists(), isFalse);
   });
 }

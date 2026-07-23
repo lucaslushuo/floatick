@@ -41,6 +41,7 @@ void main() {
         controller: controller,
         settingsController: settingsController,
         windowBridge: windowBridge,
+        locale: const Locale('zh'),
       ),
     );
     expect(find.byKey(const ValueKey('floating-todo-icon')), findsOneWidget);
@@ -179,6 +180,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Design the floating icon'), findsOneWidget);
+    expect(find.text('1 项待完成'), findsOneWidget);
     expect(repository.savedItems.single.title, 'Design the floating icon');
 
     final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
@@ -208,18 +210,64 @@ void main() {
 
     await tester.tap(editButton);
     await tester.pumpAndSettle();
-    await tester.enterText(editField, 'Polish the Flow icon');
+    await tester.enterText(editField, 'Polish the Floatick icon');
     await tester.testTextInput.receiveAction(TextInputAction.done);
     await tester.pumpAndSettle();
 
-    expect(find.text('Polish the Flow icon'), findsOneWidget);
-    expect(repository.savedItems.single.title, 'Polish the Flow icon');
+    expect(find.text('Polish the Floatick icon'), findsOneWidget);
+    expect(repository.savedItems.single.title, 'Polish the Floatick icon');
 
     await tester.sendKeyEvent(LogicalKeyboardKey.escape);
     await tester.pumpAndSettle();
 
     expect(windowBridge.expandedValues, <bool>[true, false]);
     expect(find.byKey(const ValueKey('floating-todo-icon')), findsOneWidget);
+  });
+
+  testWidgets('English locale translates the primary todo experience', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(500, 760);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final controller = TodoViewModel(todoRepository: _WidgetTestRepository());
+    final settingsController = SettingsViewModel(
+      settingsRepository: _WidgetTestSettingsRepository(),
+    );
+    final windowBridge = _WidgetTestWindowBridge();
+    await controller.load();
+    await settingsController.load();
+
+    await tester.pumpWidget(
+      FloatickApp(
+        controller: controller,
+        settingsController: settingsController,
+        windowBridge: windowBridge,
+        locale: const Locale('en'),
+      ),
+    );
+
+    windowBridge.expandRequestHandler?.call(WindowExpansionAnchor.topRight);
+    await tester.pumpAndSettle();
+
+    expect(find.text('All clear for today'), findsOneWidget);
+    expect(find.text('Search todos'), findsOneWidget);
+    expect(find.text('Add something to do…'), findsOneWidget);
+    expect(find.text('今天已经清空'), findsNothing);
+
+    await controller.add('Write English release notes');
+    await tester.pumpAndSettle();
+    expect(find.text('1 task remaining'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('settings-button')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Settings'), findsOneWidget);
+    expect(find.text('Appearance'), findsOneWidget);
+    expect(find.text('Working directory'), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 }
 

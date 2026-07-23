@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:floatick/core/storage/storage_failure.dart';
 import 'package:floatick/features/settings/data/settings_repository.dart';
 import 'package:floatick/features/settings/domain/app_settings.dart';
 import 'package:floatick/features/settings/presentation/settings_view_model.dart';
@@ -22,7 +23,7 @@ void main() {
     await controller.load();
 
     expect(controller.themePreference, AppThemePreference.dark);
-    expect(controller.errorMessage, isNull);
+    expect(controller.error, isNull);
   });
 
   test('theme changes immediately and persists the new preference', () async {
@@ -40,7 +41,7 @@ void main() {
 
     expect(repository.savedSettings.themePreference, AppThemePreference.light);
     expect(controller.isSaving, isFalse);
-    expect(controller.errorMessage, isNull);
+    expect(controller.error, isNull);
   });
 
   test('a failed save rolls the visible preference back', () async {
@@ -53,7 +54,7 @@ void main() {
     await controller.setThemePreference(AppThemePreference.light);
 
     expect(controller.themePreference, AppThemePreference.dark);
-    expect(controller.errorMessage, contains('test settings save failure'));
+    expect(controller.error?.kind, StorageFailureKind.write);
     expect(controller.isSaving, isFalse);
   });
 }
@@ -73,7 +74,7 @@ class _MemorySettingsRepository implements SettingsRepository {
   Future<void> save(AppSettings settings) async {
     if (failNextSave) {
       failNextSave = false;
-      throw const SettingsStorageException('test settings save failure');
+      throw const StorageFailure(kind: StorageFailureKind.write);
     }
     final pendingSave = this.pendingSave;
     if (pendingSave != null) {

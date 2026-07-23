@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
-import '../../../core/storage/local_file_migration.dart';
+import '../../../core/storage/storage_failure.dart';
 import '../domain/app_settings.dart';
 
 abstract interface class SettingsRepository {
@@ -13,20 +13,13 @@ abstract interface class SettingsRepository {
 }
 
 class LocalSettingsRepository implements SettingsRepository {
-  LocalSettingsRepository({
-    Directory? rootDirectory,
-    Directory? legacyRootDirectory,
-  }) : rootDirectory = rootDirectory ?? _defaultRootDirectory(),
-       legacyRootDirectory =
-           legacyRootDirectory ??
-           (rootDirectory == null ? _defaultLegacyRootDirectory() : null);
+  LocalSettingsRepository({Directory? rootDirectory})
+    : rootDirectory = rootDirectory ?? _defaultRootDirectory();
 
   static const directoryName = '.floatick';
-  static const legacyDirectoryName = '.flow2do';
   static const fileName = 'settings.json';
 
   final Directory rootDirectory;
-  final Directory? legacyRootDirectory;
 
   File get _storageFile => File('${rootDirectory.path}/$fileName');
 
@@ -36,12 +29,7 @@ class LocalSettingsRepository implements SettingsRepository {
   @override
   Future<AppSettings> load() async {
     try {
-      await migrateLegacyFileIfNeeded(
-        destinationDirectory: rootDirectory,
-        destinationFile: _storageFile,
-        legacyDirectory: legacyRootDirectory,
-        fileName: fileName,
-      );
+      await rootDirectory.create(recursive: true);
       if (!await _storageFile.exists()) {
         return const AppSettings();
       }
@@ -54,14 +42,16 @@ class LocalSettingsRepository implements SettingsRepository {
       }
       return AppSettings.fromJson(Map<String, dynamic>.from(decoded));
     } on FormatException catch (error) {
-      throw SettingsStorageException(
-        'The local settings file is damaged and was left unchanged.',
-        error,
+      throw StorageFailure(
+        kind: StorageFailureKind.invalidData,
+        path: storagePath,
+        cause: error,
       );
     } on FileSystemException catch (error) {
-      throw SettingsStorageException(
-        'Floatick could not read $storagePath.',
-        error,
+      throw StorageFailure(
+        kind: StorageFailureKind.read,
+        path: storagePath,
+        cause: error,
       );
     }
   }
@@ -83,9 +73,10 @@ class LocalSettingsRepository implements SettingsRepository {
       if (await temporaryFile.exists()) {
         await temporaryFile.delete();
       }
-      throw SettingsStorageException(
-        'Floatick could not save to $storagePath.',
-        error,
+      throw StorageFailure(
+        kind: StorageFailureKind.write,
+        path: storagePath,
+        cause: error,
       );
     }
   }
@@ -93,30 +84,10 @@ class LocalSettingsRepository implements SettingsRepository {
   static Directory _defaultRootDirectory() {
     final homeDirectory = Platform.environment['HOME'];
     if (homeDirectory == null || homeDirectory.trim().isEmpty) {
-      throw const SettingsStorageException(
-        'Floatick could not resolve the current macOS home directory.',
+      throw const StorageFailure(
+        kind: StorageFailureKind.homeDirectoryUnavailable,
       );
     }
     return Directory('$homeDirectory/$directoryName');
   }
-
-  static Directory _defaultLegacyRootDirectory() {
-    final homeDirectory = Platform.environment['HOME'];
-    if (homeDirectory == null || homeDirectory.trim().isEmpty) {
-      throw const SettingsStorageException(
-        'Floatick could not resolve the current macOS home directory.',
-      );
-    }
-    return Directory('$homeDirectory/$legacyDirectoryName');
-  }
-}
-
-class SettingsStorageException implements Exception {
-  const SettingsStorageException(this.message, [this.cause]);
-
-  final String message;
-  final Object? cause;
-
-  @override
-  String toString() => message;
 }

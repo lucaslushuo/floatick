@@ -1,0 +1,77 @@
+{
+  "@@locale": "en",
+  "applicationTitle": "Floatick",
+  "openApp": "Open Floatick",
+  "openAppHint": "Drag to reposition; click to open the todo list",
+  "settingsTitle": "Settings",
+  "appearanceSectionTitle": "Appearance",
+  "workingDirectorySectionTitle": "Working directory",
+  "workingDirectorySemantics": "Working directory: {path}",
+  "@workingDirectorySemantics": {
+    "placeholders": {
+      "path": {
+        "type": "String"
+      }
+    }
+  },
+  "closeSettingsTooltip": "Close settings",
+  "themeSystemTooltip": "Follow system",
+  "themeLightTooltip": "Light theme",
+  "themeDarkTooltip": "Dark theme",
+  "searchTodosHint": "Search todos",
+  "searchArchiveHint": "Search archive",
+  "clearSearchTooltip": "Clear search",
+  "addTodoHint": "Add something to do…",
+  "allClearToday": "All clear for today",
+  "activeTodoCount": "{count, plural, =1{1 task remaining} other{{count} tasks remaining}}",
+  "@activeTodoCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "settingsTooltip": "Settings",
+  "collapseTooltip": "Collapse (Esc)",
+  "activeScopeLabel": "Todos",
+  "archiveScopeLabel": "Archive",
+  "addTodoSemanticsLabel": "Add todo",
+  "addTodoTooltip": "Add todo (Return)",
+  "dismissErrorTooltip": "Dismiss error",
+  "completedStatus": "Completed",
+  "incompleteStatus": "Incomplete",
+  "markIncompleteTooltip": "Mark incomplete",
+  "markCompleteTooltip": "Mark complete",
+  "todoTitleRequiredHint": "Todo title cannot be empty",
+  "saveTooltip": "Save",
+  "editTooltip": "Edit",
+  "cancelEditTooltip": "Cancel editing",
+  "restoreTooltip": "Restore to todos",
+  "archiveTooltip": "Archive",
+  "noSearchResultsTitle": "No matching results",
+  "emptyArchiveTitle": "Archive is empty",
+  "emptyTodosTitle": "Nothing to do—enjoy the moment",
+  "noSearchResultsMessage": "Try another keyword",
+  "emptyArchiveMessage": "Archived items will appear here",
+  "emptyTodosMessage": "Add a new item above whenever you like",
+  "todayLabel": "Today",
+  "yesterdayLabel": "Yesterday",
+  "storageInvalidDataError": "The local data file is damaged and was left unchanged.",
+  "storageReadError": "Floatick couldn't read {path}.",
+  "@storageReadError": {
+    "placeholders": {
+      "path": {
+        "type": "String"
+      }
+    }
+  },
+  "storageWriteError": "Floatick couldn't save to {path}.",
+  "@storageWriteError": {
+    "placeholders": {
+      "path": {
+        "type": "String"
+      }
+    }
+  },
+  "storageHomeError": "Floatick couldn't resolve your macOS home directory."
+}

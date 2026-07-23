@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:floatick/core/storage/storage_failure.dart';
 import 'package:floatick/features/todos/data/todo_repository.dart';
 import 'package:floatick/features/todos/domain/todo_item.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -66,83 +67,13 @@ void main() {
     await expectLater(
       repository.load(),
       throwsA(
-        isA<TodoStorageException>().having(
-          (error) => error.message,
-          'message',
-          contains('damaged'),
+        isA<StorageFailure>().having(
+          (error) => error.kind,
+          'kind',
+          StorageFailureKind.invalidData,
         ),
       ),
     );
     expect(await file.readAsString(), damagedContent);
   });
-
-  test('legacy storage moves to Floatick without losing todos', () async {
-    final legacyDirectory = Directory('${temporaryDirectory.path}/.flow2do');
-    final destinationDirectory = Directory(
-      '${temporaryDirectory.path}/.floatick',
-    );
-    final legacyFile = File('${legacyDirectory.path}/todos.json');
-    await legacyDirectory.create(recursive: true);
-    await legacyFile.writeAsString(
-      jsonEncode(<Object?>[
-        <String, Object?>{
-          'id': 'legacy-todo',
-          'title': 'Keep existing data',
-          'createdAt': '2026-07-23T06:30:00.000Z',
-        },
-      ]),
-    );
-    repository = LocalTodoRepository(
-      rootDirectory: destinationDirectory,
-      legacyRootDirectory: legacyDirectory,
-    );
-
-    final items = await repository.load();
-
-    expect(items.single.id, 'legacy-todo');
-    expect(repository.storagePath, '${destinationDirectory.path}/todos.json');
-    expect(await File(repository.storagePath).exists(), isTrue);
-    expect(await legacyFile.exists(), isFalse);
-  });
-
-  test(
-    'existing Floatick storage is never overwritten by legacy data',
-    () async {
-      final legacyDirectory = Directory('${temporaryDirectory.path}/.flow2do');
-      final destinationDirectory = Directory(
-        '${temporaryDirectory.path}/.floatick',
-      );
-      final legacyFile = File('${legacyDirectory.path}/todos.json');
-      final destinationFile = File('${destinationDirectory.path}/todos.json');
-      await legacyDirectory.create(recursive: true);
-      await destinationDirectory.create(recursive: true);
-      await legacyFile.writeAsString(
-        jsonEncode(<Object?>[
-          <String, Object?>{
-            'id': 'legacy-todo',
-            'title': 'Legacy',
-            'createdAt': '2026-07-23T06:30:00.000Z',
-          },
-        ]),
-      );
-      await destinationFile.writeAsString(
-        jsonEncode(<Object?>[
-          <String, Object?>{
-            'id': 'current-todo',
-            'title': 'Current',
-            'createdAt': '2026-07-24T06:30:00.000Z',
-          },
-        ]),
-      );
-      repository = LocalTodoRepository(
-        rootDirectory: destinationDirectory,
-        legacyRootDirectory: legacyDirectory,
-      );
-
-      final items = await repository.load();
-
-      expect(items.single.id, 'current-todo');
-      expect(await legacyFile.exists(), isTrue);
-    },
-  );
 }

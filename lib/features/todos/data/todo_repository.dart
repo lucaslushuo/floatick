@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
-import '../../../core/storage/local_file_migration.dart';
+import '../../../core/storage/storage_failure.dart';
 import '../domain/todo_item.dart';
 
 abstract interface class TodoRepository {
@@ -13,20 +13,13 @@ abstract interface class TodoRepository {
 }
 
 class LocalTodoRepository implements TodoRepository {
-  LocalTodoRepository({
-    Directory? rootDirectory,
-    Directory? legacyRootDirectory,
-  }) : rootDirectory = rootDirectory ?? _defaultRootDirectory(),
-       legacyRootDirectory =
-           legacyRootDirectory ??
-           (rootDirectory == null ? _defaultLegacyRootDirectory() : null);
+  LocalTodoRepository({Directory? rootDirectory})
+    : rootDirectory = rootDirectory ?? _defaultRootDirectory();
 
   static const directoryName = '.floatick';
-  static const legacyDirectoryName = '.flow2do';
   static const fileName = 'todos.json';
 
   final Directory rootDirectory;
-  final Directory? legacyRootDirectory;
 
   File get _storageFile => File('${rootDirectory.path}/$fileName');
 
@@ -36,12 +29,7 @@ class LocalTodoRepository implements TodoRepository {
   @override
   Future<List<TodoItem>> load() async {
     try {
-      await migrateLegacyFileIfNeeded(
-        destinationDirectory: rootDirectory,
-        destinationFile: _storageFile,
-        legacyDirectory: legacyRootDirectory,
-        fileName: fileName,
-      );
+      await rootDirectory.create(recursive: true);
       if (!await _storageFile.exists()) {
         return <TodoItem>[];
       }
@@ -60,14 +48,16 @@ class LocalTodoRepository implements TodoRepository {
           })
           .toList(growable: false);
     } on FormatException catch (error) {
-      throw TodoStorageException(
-        'The local todo file is damaged and was left unchanged.',
-        error,
+      throw StorageFailure(
+        kind: StorageFailureKind.invalidData,
+        path: storagePath,
+        cause: error,
       );
     } on FileSystemException catch (error) {
-      throw TodoStorageException(
-        'Floatick could not read $storagePath.',
-        error,
+      throw StorageFailure(
+        kind: StorageFailureKind.read,
+        path: storagePath,
+        cause: error,
       );
     }
   }
@@ -89,9 +79,10 @@ class LocalTodoRepository implements TodoRepository {
       if (await temporaryFile.exists()) {
         await temporaryFile.delete();
       }
-      throw TodoStorageException(
-        'Floatick could not save to $storagePath.',
-        error,
+      throw StorageFailure(
+        kind: StorageFailureKind.write,
+        path: storagePath,
+        cause: error,
       );
     }
   }
@@ -99,30 +90,10 @@ class LocalTodoRepository implements TodoRepository {
   static Directory _defaultRootDirectory() {
     final homeDirectory = Platform.environment['HOME'];
     if (homeDirectory == null || homeDirectory.trim().isEmpty) {
-      throw const TodoStorageException(
-        'Floatick could not resolve the current macOS home directory.',
+      throw const StorageFailure(
+        kind: StorageFailureKind.homeDirectoryUnavailable,
       );
     }
     return Directory('$homeDirectory/$directoryName');
   }
-
-  static Directory _defaultLegacyRootDirectory() {
-    final homeDirectory = Platform.environment['HOME'];
-    if (homeDirectory == null || homeDirectory.trim().isEmpty) {
-      throw const TodoStorageException(
-        'Floatick could not resolve the current macOS home directory.',
-      );
-    }
-    return Directory('$homeDirectory/$legacyDirectoryName');
-  }
-}
-
-class TodoStorageException implements Exception {
-  const TodoStorageException(this.message, [this.cause]);
-
-  final String message;
-  final Object? cause;
-
-  @override
-  String toString() => message;
 }

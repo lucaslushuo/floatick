@@ -1,3 +1,4 @@
+import 'package:floatick/core/storage/storage_failure.dart';
 import 'package:floatick/features/todos/data/todo_repository.dart';
 import 'package:floatick/features/todos/domain/todo_item.dart';
 import 'package:floatick/features/todos/presentation/todo_view_model.dart';
@@ -128,7 +129,7 @@ void main() {
 
     expect(didRename, isFalse);
     expect(controller.items.single.title, 'Original title');
-    expect(controller.errorMessage, contains('test save failure'));
+    expect(controller.error?.kind, StorageFailureKind.write);
   });
 
   test(
@@ -167,12 +168,12 @@ void main() {
       await controller.add('Will fail');
 
       expect(controller.items, isEmpty);
-      expect(controller.errorMessage, contains('test save failure'));
+      expect(controller.error?.kind, StorageFailureKind.write);
 
       await controller.add('Will succeed');
 
       expect(controller.items.single.title, 'Will succeed');
-      expect(controller.errorMessage, isNull);
+      expect(controller.error, isNull);
     },
   );
 }
@@ -195,7 +196,7 @@ class _MemoryTodoRepository implements TodoRepository {
     saveCount += 1;
     if (failNextSave) {
       failNextSave = false;
-      throw const TodoStorageException('test save failure');
+      throw const StorageFailure(kind: StorageFailureKind.write);
     }
     savedItems = List<TodoItem>.of(items);
   }

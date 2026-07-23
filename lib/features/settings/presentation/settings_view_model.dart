@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 
+import '../../../core/storage/storage_failure.dart';
 import '../data/settings_repository.dart';
 import '../domain/app_settings.dart';
 
@@ -10,27 +11,27 @@ class SettingsViewModel extends ChangeNotifier {
   final SettingsRepository _repository;
 
   AppSettings _settings = const AppSettings();
-  String? _errorMessage;
+  StorageFailure? _error;
   bool _isLoading = false;
   bool _isSaving = false;
 
   AppSettings get settings => _settings;
   AppThemePreference get themePreference => _settings.themePreference;
-  String? get errorMessage => _errorMessage;
+  StorageFailure? get error => _error;
   bool get isLoading => _isLoading;
   bool get isSaving => _isSaving;
   String get storagePath => _repository.storagePath;
 
   Future<void> load() async {
     _isLoading = true;
-    _errorMessage = null;
+    _error = null;
     notifyListeners();
 
     try {
       _settings = await _repository.load();
-    } on SettingsStorageException catch (error) {
+    } on StorageFailure catch (error) {
       _settings = const AppSettings();
-      _errorMessage = error.message;
+      _error = error;
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -44,15 +45,15 @@ class SettingsViewModel extends ChangeNotifier {
 
     final previousSettings = _settings;
     _settings = _settings.copyWith(themePreference: preference);
-    _errorMessage = null;
+    _error = null;
     _isSaving = true;
     notifyListeners();
 
     try {
       await _repository.save(_settings);
-    } on SettingsStorageException catch (error) {
+    } on StorageFailure catch (error) {
       _settings = previousSettings;
-      _errorMessage = error.message;
+      _error = error;
     } finally {
       _isSaving = false;
       notifyListeners();
@@ -60,10 +61,10 @@ class SettingsViewModel extends ChangeNotifier {
   }
 
   void dismissError() {
-    if (_errorMessage == null) {
+    if (_error == null) {
       return;
     }
-    _errorMessage = null;
+    _error = null;
     notifyListeners();
   }
 }
