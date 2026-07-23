@@ -1,65 +1,48 @@
 # macOS release
 
-Floatick is distributed outside the Mac App Store as a signed, notarized,
-universal DMG attached to a GitHub Release.
+Floatick is currently distributed outside the Mac App Store as an unsigned,
+unnotarized universal DMG attached to a GitHub Release. The workflow runs
+entirely on a GitHub-hosted macOS runner and does not require Apple secrets.
 
 Release repository: `https://github.com/lucaslushuo/floatick`
 
-## One-time Apple setup
-
-An active Apple Developer Program membership is required.
-
-1. Create and export a `Developer ID Application` certificate as a password
-   protected `.p12`.
-2. Create an App Store Connect API key with permission to submit for
-   notarization.
-3. Create a protected GitHub Environment named `release`.
-4. Add these environment secrets:
-
-| Secret | Value |
-| --- | --- |
-| `MACOS_CERTIFICATE_P12_BASE64` | Base64-encoded `.p12` |
-| `MACOS_CERTIFICATE_PASSWORD` | Password used when exporting the `.p12` |
-| `APPLE_TEAM_ID` | Apple Developer Team ID |
-| `APPLE_API_KEY_ID` | App Store Connect API key ID |
-| `APPLE_API_ISSUER_ID` | App Store Connect API issuer ID |
-| `APPLE_API_PRIVATE_KEY_BASE64` | Base64-encoded `.p8` private key |
-
-Restrict the `release` environment to the `main` branch and require manual
-approval if more than one maintainer can push tags.
-
 ## Publish a release
 
-1. Update `version` in `pubspec.yaml`, for example `1.1.0+1`.
+1. Update `version` in `pubspec.yaml`. The first public version is
+   `0.1.0+1`.
 2. Merge the release changes into `main`.
 3. Create and push the matching tag:
 
    ```bash
-   git tag -s v1.1.0 -m "Floatick 1.1.0"
-   git push origin v1.1.0
+   git tag -a v0.1.0 -m "Floatick 0.1.0"
+   git push origin v0.1.0
    ```
 
 The tag without its leading `v` must exactly match the public version before
 the `+` in `pubspec.yaml`. Versions containing a pre-release suffix, such as
-`1.1.0-beta.1`, are automatically published as GitHub pre-releases.
+`0.2.0-beta.1`, are automatically published as GitHub pre-releases.
 
 The release workflow:
 
 1. runs Flutter tests;
-2. imports the Developer ID certificate into an ephemeral keychain;
-3. archives and exports the app through Xcode;
-4. verifies both `arm64` and `x86_64` architectures;
-5. creates and signs the DMG;
-6. submits it to Apple's notary service and staples the ticket;
-7. publishes the DMG and its SHA-256 checksum to GitHub Releases.
+2. builds the macOS release app;
+3. verifies both `arm64` and `x86_64` architectures;
+4. creates the DMG and its SHA-256 checksum;
+5. publishes both files to GitHub Releases with an unsigned-build warning.
 
-Never upload signing certificates or API keys to the repository.
+No Apple signing or notarization secrets are required for this workflow.
 
 ## Update strategy
 
 The first public versions use GitHub Releases as a manual download channel.
-After the app identity and signing certificate are stable, add Sparkle 2 to the
-native AppKit shell for in-app updates. The same notarized DMG can remain the
+When an Apple Developer Program membership is available, update the release
+workflow to sign the app and DMG with a `Developer ID Application` certificate,
+submit the DMG through `notarytool`, and staple the returned ticket before
+publishing. Keep certificates, passwords, Team IDs, and App Store Connect API
+credentials in GitHub Environment secrets, never in the repository.
+
+After the app identity and signing certificate are stable, add Sparkle 2 to
+the native AppKit shell for in-app updates. The notarized DMG can remain the
 release asset; Sparkle adds an HTTPS appcast plus an independent EdDSA signature
 for update verification.
 

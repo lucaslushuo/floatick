@@ -14,10 +14,9 @@ env:
 
 jobs:
   release:
-    name: Sign, notarize, and publish
+    name: Build and publish unsigned DMG
     runs-on: macos-15
     timeout-minutes: 45
-    environment: release
 
     steps:
       - name: Check out repository
@@ -47,94 +46,39 @@ jobs:
             "$RUNNER_TEMP/flutter"
           echo "$RUNNER_TEMP/flutter/bin" >> "$GITHUB_PATH"
 
-      - name: Install dependencies and test
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Verify source
         run: |
-          flutter pub get
+          dart format --output=none --set-exit-if-changed lib test
+          flutter analyze
           flutter test
 
-      - name: Import Developer ID certificate
-        env:
-          MACOS_CERTIFICATE_P12_BASE64: ${{ secrets.MACOS_CERTIFICATE_P12_BASE64 }}
-          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
-        shell: bash
-        run: |
-          certificate_path="$RUNNER_TEMP/developer-id.p12"
-          keychain_path="$RUNNER_TEMP/release-signing.keychain-db"
-          keychain_password=$(uuidgen)
-
-          printf '%s' "$MACOS_CERTIFICATE_P12_BASE64" | base64 --decode > "$certificate_path"
-          security create-keychain -p "$keychain_password" "$keychain_path"
-          security set-keychain-settings -lut 21600 "$keychain_path"
-          security unlock-keychain -p "$keychain_password" "$keychain_path"
-          security import "$certificate_path" \
-            -P "$MACOS_CERTIFICATE_PASSWORD" \
-            -A \
-            -t cert \
-            -f pkcs12 \
-            -k "$keychain_path"
-          security set-key-partition-list \
-            -S apple-tool:,apple: \
-            -s \
-            -k "$keychain_password" \
-            "$keychain_path"
-          security list-keychains -d user -s "$keychain_path"
-          rm -f "$certificate_path"
-
-      - name: Configure Flutter release
+      - name: Build release app
         env:
           APP_VERSION: ${{ steps.version.outputs.app_version }}
         run: |
           flutter build macos \
             --release \
-            --config-only \
             --build-name "$APP_VERSION" \
             --build-number "$GITHUB_RUN_NUMBER"
 
-      - name: Archive and export signed app
-        env:
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      - name: Verify app architectures
         shell: bash
         run: |
-          archive_path="$RUNNER_TEMP/$PRODUCT_NAME.xcarchive"
-          export_path="$RUNNER_TEMP/export"
-          export_options="$RUNNER_TEMP/ExportOptions.plist"
-
-          cp tool/release/ExportOptions.plist "$export_options"
-          /usr/libexec/PlistBuddy \
-            -c "Set :teamID $APPLE_TEAM_ID" \
-            "$export_options"
-
-          xcodebuild archive \
-            -workspace macos/Runner.xcworkspace \
-            -scheme Runner \
-            -configuration Release \
-            -destination 'generic/platform=macOS' \
-            -archivePath "$archive_path" \
-            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
-            CODE_SIGN_STYLE=Manual \
-            CODE_SIGN_IDENTITY='Developer ID Application'
-
-          xcodebuild -exportArchive \
-            -archivePath "$archive_path" \
-            -exportPath "$export_path" \
-            -exportOptionsPlist "$export_options"
-
-      - name: Verify app signature and architectures
-        shell: bash
-        run: |
-          app_path="$RUNNER_TEMP/export/$PRODUCT_NAME.app"
+          app_path="build/macos/Build/Products/Release/$PRODUCT_NAME.app"
           executable_name=$(/usr/libexec/PlistBuddy \
             -c 'Print :CFBundleExecutable' \
             "$app_path/Contents/Info.plist")
           architectures=$(lipo -archs "$app_path/Contents/MacOS/$executable_name")
 
-          codesign --verify --deep --strict --verbose=2 "$app_path"
           if [[ "$architectures" != *arm64* || "$architectures" != *x86_64* ]]; then
             echo "Expected a universal app, found: $architectures" >&2
             exit 1
           fi
 
-      - name: Create and sign DMG
+      - name: Create DMG and checksum
         id: package
         env:
           APP_VERSION: ${{ steps.version.outputs.app_version }}
@@ -144,47 +88,18 @@ jobs:
           dmg_name="$PRODUCT_NAME-$APP_VERSION-macos-universal.dmg"
           dmg_path="$artifact_directory/$dmg_name"
 
-          chmod +x tool/release/create_dmg.sh
           tool/release/create_dmg.sh \
-            "$RUNNER_TEMP/export/$PRODUCT_NAME.app" \
+            "build/macos/Build/Products/Release/$PRODUCT_NAME.app" \
             "$dmg_path" \
             "$PRODUCT_NAME"
-          codesign \
-            --force \
-            --sign 'Developer ID Application' \
-            --timestamp \
-            "$dmg_path"
+
+          (
+            cd "$artifact_directory"
+            shasum -a 256 "$dmg_name" > "$dmg_name.sha256"
+          )
 
           echo "dmg_name=$dmg_name" >> "$GITHUB_OUTPUT"
           echo "dmg_path=$dmg_path" >> "$GITHUB_OUTPUT"
-
-      - name: Notarize and staple DMG
-        env:
-          APPLE_API_ISSUER_ID: ${{ secrets.APPLE_API_ISSUER_ID }}
-          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
-          APPLE_API_PRIVATE_KEY_BASE64: ${{ secrets.APPLE_API_PRIVATE_KEY_BASE64 }}
-          DMG_PATH: ${{ steps.package.outputs.dmg_path }}
-        shell: bash
-        run: |
-          api_key_path="$RUNNER_TEMP/AuthKey_$APPLE_API_KEY_ID.p8"
-          printf '%s' "$APPLE_API_PRIVATE_KEY_BASE64" | base64 --decode > "$api_key_path"
-
-          xcrun notarytool submit "$DMG_PATH" \
-            --key "$api_key_path" \
-            --key-id "$APPLE_API_KEY_ID" \
-            --issuer "$APPLE_API_ISSUER_ID" \
-            --wait
-          xcrun stapler staple "$DMG_PATH"
-          xcrun stapler validate "$DMG_PATH"
-          spctl --assess --type open --context context:primary-signature --verbose=2 "$DMG_PATH"
-          rm -f "$api_key_path"
-
-      - name: Create checksum
-        env:
-          DMG_PATH: ${{ steps.package.outputs.dmg_path }}
-        shell: bash
-        run: |
-          shasum -a 256 "$DMG_PATH" > "$DMG_PATH.sha256"
 
       - name: Publish GitHub Release
         env:
@@ -193,9 +108,22 @@ jobs:
           DMG_PATH: ${{ steps.package.outputs.dmg_path }}
         shell: bash
         run: |
+          notes_path="$RUNNER_TEMP/release-notes.md"
+          cat > "$notes_path" <<'EOF'
+          ## ⚠️ 安装提示
+
+          此版本未使用 Apple Developer ID 签名，也未经过 Apple 公证。
+          macOS 首次启动时可能阻止打开。请尝试打开一次 Floatick，然后前往
+          “系统设置”→“隐私与安全”，在“安全性”区域点击“仍要打开”。
+
+          请仅从本仓库的 Releases 页面下载安装包，并使用随附的 SHA-256
+          文件校验下载内容。
+          EOF
+
           release_flags=(
             --verify-tag
             --generate-notes
+            --notes-file "$notes_path"
             --title "$PRODUCT_NAME $GITHUB_REF_NAME"
           )
           if [[ "$GITHUB_REF_NAME" == *-* ]]; then
