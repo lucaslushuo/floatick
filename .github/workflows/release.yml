@@ -110,14 +110,14 @@ jobs:
         run: |
           notes_path="$RUNNER_TEMP/release-notes.md"
           cat > "$notes_path" <<'EOF'
-          ## ⚠️ 安装提示
+          ## 温馨提示
 
-          此版本未使用 Apple Developer ID 签名，也未经过 Apple 公证。
-          macOS 首次启动时可能阻止打开。请尝试打开一次 Floatick，然后前往
-          “系统设置”→“隐私与安全”，在“安全性”区域点击“仍要打开”。
+          Floatick 目前仍处于早期版本。第一次打开时，如果 macOS 需要额外
+          确认，请先尝试打开一次 Floatick，然后前往“系统设置”→
+          “隐私与安全”，在“安全性”区域点击“仍要打开”。
 
-          请仅从本仓库的 Releases 页面下载安装包，并使用随附的 SHA-256
-          文件校验下载内容。
+          完成一次确认后，后续就可以正常启动。下载页面同时提供 SHA-256
+          校验文件。
           EOF
 
           release_flags=(
