@@ -1,9 +1,8 @@
 <div align="center">
   <img
-    src="./macos/Runner/Assets.xcassets/AppIcon.appiconset/app_icon_256.png"
-    width="128"
-    height="128"
-    alt="Floatick floating todo list and task manager for macOS"
+    src="./docs/assets/floatick-product-hero.png"
+    width="100%"
+    alt="Floatick floating todo list and settings for macOS"
   />
   <h1>Floatick — Floating Todo List for macOS</h1>
   <p><strong>An open-source, local-first macOS todo app and lightweight task manager.</strong></p>
