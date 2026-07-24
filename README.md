@@ -65,8 +65,8 @@ sudo xcodebuild -runFirstLaunch
 日常开发使用短期 `feature/*`、`fix/*` 分支并通过 Pull Request 合并到
 `main`。`release/x.y.z` 分支只生成供维护者验收的 Draft Release；只有已经
 进入 `main` 历史的同一候选提交打上 `vX.Y.Z` 标签后，才会发布正式 Release。
-完整分支模型和候选版验收步骤见
-[docs/RELEASING.md](docs/RELEASING.md)。
+先阅读简明的[开发与发布流程](docs/DEVELOPMENT_WORKFLOW.md)，完整候选版验收
+细节见 [docs/RELEASING.md](docs/RELEASING.md)。
 
 ## 测试
 
