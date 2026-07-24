@@ -3,12 +3,12 @@
     src="./macos/Runner/Assets.xcassets/AppIcon.appiconset/app_icon_256.png"
     width="128"
     height="128"
-    alt="Floatick app icon"
+    alt="Floatick floating todo list and task manager for macOS"
   />
-  <h1>Floatick</h1>
-  <p><strong>A calm, local-first floating todo list for macOS.</strong></p>
+  <h1>Floatick — Floating Todo List for macOS</h1>
+  <p><strong>An open-source, local-first macOS todo app and lightweight task manager.</strong></p>
   <p>
-    Keep tasks one click away without giving up your desktop or your data.
+    Capture and organize tasks one click away—without an account or cloud service.
   </p>
   <p>
     <a href="https://github.com/lucaslushuo/floatick/actions/workflows/ci.yml">
@@ -25,12 +25,13 @@
   </p>
 </div>
 
-Floatick rests above your workspace as a small, draggable icon. Click it and the
-icon expands into a focused todo panel; collapse it and the icon returns to the
-same anchor. The panel chooses its expansion direction from the available screen
-space, so it stays useful near any display edge.
+Floatick is an offline-friendly desktop todo app that rests above your workspace
+as a small, draggable icon. Click it and the icon expands into a focused todo
+panel; collapse it and the icon returns to the same anchor. The panel chooses
+its expansion direction from the available screen space, so it stays useful
+near any display edge.
 
-## Highlights
+## A focused macOS task manager
 
 - **Always within reach** — drag the floating icon anywhere, then click to open.
 - **Fast task flow** — create, edit, complete, search, archive, restore, and
@@ -43,7 +44,7 @@ space, so it stays useful near any display edge.
   and Simplified Chinese.
 - **Built-in updates** — automatic and manual update checks powered by Sparkle.
 
-## Download
+## Download Floatick for macOS
 
 Download the latest DMG from
 [GitHub Releases](https://github.com/lucaslushuo/floatick/releases), open it,
