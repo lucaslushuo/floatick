@@ -1,0 +1,202 @@
+name: Release Candidate
+
+on:
+  push:
+    branches:
+      - 'release/**'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-candidate-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FLUTTER_VERSION: 3.44.7
+  PRODUCT_NAME: Floatick
+
+jobs:
+  candidate:
+    name: Build draft release
+    runs-on: macos-15
+    timeout-minutes: 45
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Validate release branch and version
+        id: version
+        shell: bash
+        run: |
+          if [[ "$GITHUB_REF_TYPE" != "branch" ||
+                ! "$GITHUB_REF_NAME" =~ ^release/([0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
+            echo "Run this workflow from a release/x.y.z branch." >&2
+            exit 1
+          fi
+
+          branch_version="${BASH_REMATCH[1]}"
+          full_version=$(awk '/^version:/{print $2}' pubspec.yaml)
+          app_version=${full_version%%+*}
+          app_build_number=${full_version#*+}
+
+          if [[ "$full_version" == "$app_version" ||
+                ! "$app_build_number" =~ ^[1-9][0-9]*$ ]]; then
+            echo "pubspec version must include a positive build number." >&2
+            exit 1
+          fi
+          if [[ "$app_version" != "$branch_version" ]]; then
+            echo "Branch release/$branch_version does not match pubspec version $app_version." >&2
+            exit 1
+          fi
+          if git ls-remote --exit-code --tags origin "refs/tags/v$app_version" \
+            >/dev/null 2>&1; then
+            echo "Stable tag v$app_version already exists." >&2
+            exit 1
+          fi
+
+          echo "app_version=$app_version" >> "$GITHUB_OUTPUT"
+          echo "app_build_number=$app_build_number" >> "$GITHUB_OUTPUT"
+          echo "candidate_tag=candidate/v$app_version" >> "$GITHUB_OUTPUT"
+
+      - name: Install Flutter
+        shell: bash
+        run: |
+          git clone \
+            --branch "$FLUTTER_VERSION" \
+            --depth 1 \
+            https://github.com/flutter/flutter.git \
+            "$RUNNER_TEMP/flutter"
+          echo "$RUNNER_TEMP/flutter/bin" >> "$GITHUB_PATH"
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Verify source
+        run: |
+          dart format --output=none --set-exit-if-changed lib test
+          flutter analyze
+          flutter test
+
+      - name: Build release app
+        env:
+          APP_VERSION: ${{ steps.version.outputs.app_version }}
+          APP_BUILD_NUMBER: ${{ steps.version.outputs.app_build_number }}
+        run: |
+          flutter build macos \
+            --release \
+            --build-name "$APP_VERSION" \
+            --build-number "$APP_BUILD_NUMBER"
+
+      - name: Verify app architectures
+        shell: bash
+        run: |
+          app_path="build/macos/Build/Products/Release/$PRODUCT_NAME.app"
+          executable_name=$(/usr/libexec/PlistBuddy \
+            -c 'Print :CFBundleExecutable' \
+            "$app_path/Contents/Info.plist")
+          architectures=$(lipo -archs "$app_path/Contents/MacOS/$executable_name")
+
+          if [[ "$architectures" != *arm64* || "$architectures" != *x86_64* ]]; then
+            echo "Expected a universal app, found: $architectures" >&2
+            exit 1
+          fi
+
+      - name: Create candidate package
+        id: package
+        env:
+          APP_VERSION: ${{ steps.version.outputs.app_version }}
+          APP_BUILD_NUMBER: ${{ steps.version.outputs.app_build_number }}
+        shell: bash
+        run: |
+          artifact_directory="$RUNNER_TEMP/artifacts"
+          dmg_name="$PRODUCT_NAME-$APP_VERSION-macos-universal.dmg"
+          dmg_path="$artifact_directory/$dmg_name"
+          manifest_name="$PRODUCT_NAME-$APP_VERSION-release-manifest.json"
+          manifest_path="$artifact_directory/$manifest_name"
+
+          tool/release/create_dmg.sh \
+            "build/macos/Build/Products/Release/$PRODUCT_NAME.app" \
+            "$dmg_path" \
+            "$PRODUCT_NAME"
+
+          (
+            cd "$artifact_directory"
+            shasum -a 256 "$dmg_name" > "$dmg_name.sha256"
+          )
+          dmg_sha256=$(awk '{print $1}' "$dmg_path.sha256")
+          jq -n \
+            --arg product "$PRODUCT_NAME" \
+            --arg version "$APP_VERSION" \
+            --arg build_number "$APP_BUILD_NUMBER" \
+            --arg commit "$GITHUB_SHA" \
+            --arg dmg "$dmg_name" \
+            --arg sha256 "$dmg_sha256" \
+            '{
+              product: $product,
+              version: $version,
+              build_number: $build_number,
+              commit: $commit,
+              dmg: $dmg,
+              sha256: $sha256
+            }' > "$manifest_path"
+
+          echo "dmg_name=$dmg_name" >> "$GITHUB_OUTPUT"
+          echo "dmg_path=$dmg_path" >> "$GITHUB_OUTPUT"
+          echo "manifest_name=$manifest_name" >> "$GITHUB_OUTPUT"
+          echo "manifest_path=$manifest_path" >> "$GITHUB_OUTPUT"
+
+      - name: Create or update draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          APP_VERSION: ${{ steps.version.outputs.app_version }}
+          CANDIDATE_TAG: ${{ steps.version.outputs.candidate_tag }}
+          DMG_NAME: ${{ steps.package.outputs.dmg_name }}
+          DMG_PATH: ${{ steps.package.outputs.dmg_path }}
+          MANIFEST_NAME: ${{ steps.package.outputs.manifest_name }}
+          MANIFEST_PATH: ${{ steps.package.outputs.manifest_path }}
+        shell: bash
+        run: |
+          release_exists=false
+          if gh release view "$CANDIDATE_TAG" >/dev/null 2>&1; then
+            is_draft=$(gh release view "$CANDIDATE_TAG" \
+              --json isDraft \
+              --jq '.isDraft')
+            if [[ "$is_draft" != "true" ]]; then
+              echo "Candidate release $CANDIDATE_TAG is already public." >&2
+              exit 1
+            fi
+            release_exists=true
+          fi
+
+          git tag --force "$CANDIDATE_TAG" "$GITHUB_SHA"
+          git push --force origin "refs/tags/$CANDIDATE_TAG"
+
+          if [[ "$release_exists" == "true" ]]; then
+            gh release edit "$CANDIDATE_TAG" \
+              --draft \
+              --target "$GITHUB_SHA" \
+              --title "$PRODUCT_NAME v$APP_VERSION — Candidate" \
+              --notes-file .github/release-notes-header.md
+            gh release upload "$CANDIDATE_TAG" \
+              "$DMG_PATH#$DMG_NAME" \
+              "$DMG_PATH.sha256#$DMG_NAME.sha256" \
+              "$MANIFEST_PATH#$MANIFEST_NAME" \
+              --clobber
+          else
+            gh release create "$CANDIDATE_TAG" \
+              "$DMG_PATH#$DMG_NAME" \
+              "$DMG_PATH.sha256#$DMG_NAME.sha256" \
+              "$MANIFEST_PATH#$MANIFEST_NAME" \
+              --verify-tag \
+              --draft \
+              --target "$GITHUB_SHA" \
+              --title "$PRODUCT_NAME v$APP_VERSION — Candidate" \
+              --notes-file .github/release-notes-header.md
+          fi
+
+          echo "Draft release updated for commit $GITHUB_SHA."

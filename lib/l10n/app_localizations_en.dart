@@ -24,6 +24,48 @@ class AppLocalizationsEn extends AppLocalizations {
   String get appearanceSectionTitle => 'Appearance';
 
   @override
+  String get languageSectionTitle => 'Language';
+
+  @override
+  String get languageSystemTooltip => 'Follow system';
+
+  @override
+  String get languageSimplifiedChineseTooltip => 'Simplified Chinese';
+
+  @override
+  String get languageEnglishTooltip => 'English';
+
+  @override
+  String get updatesSectionTitle => 'Updates';
+
+  @override
+  String currentVersionLabel(String version) {
+    return 'Version $version';
+  }
+
+  @override
+  String get automaticUpdateChecksLabel => 'Automatically check for updates';
+
+  @override
+  String get automaticUpdateChecksDescription =>
+      'Checks daily and asks before installing';
+
+  @override
+  String get checkForUpdatesButton => 'Check for updates';
+
+  @override
+  String get checkingForUpdatesButton => 'Checking…';
+
+  @override
+  String get updateSettingsLoadError => 'Update settings are unavailable.';
+
+  @override
+  String get updateSettingsSaveError => 'Couldn\'t change update settings.';
+
+  @override
+  String get updateCheckError => 'Couldn\'t check for updates.';
+
+  @override
   String get workingDirectorySectionTitle => 'Working directory';
 
   @override

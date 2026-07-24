@@ -28,6 +28,7 @@ final class MainFlutterWindow: NSWindow {
   private var pendingExpansionAnchor: ExpansionAnchor?
   private var collapsedDragOverlay: CollapsedDragOverlayView?
   private var windowChannel: FlutterMethodChannel?
+  private var updateService: UpdateService?
 
   override var canBecomeKey: Bool { true }
   override var canBecomeMain: Bool { true }
@@ -40,6 +41,7 @@ final class MainFlutterWindow: NSWindow {
     contentViewController = flutterViewController
     RegisterGeneratedPlugins(registry: flutterViewController)
     configureWindowChannel(for: flutterViewController)
+    configureUpdateService(for: flutterViewController)
     configureDragOverlay(for: flutterViewController.view)
 
     let origin = restoredCollapsedOrigin() ?? defaultCollapsedOrigin()
@@ -109,11 +111,43 @@ final class MainFlutterWindow: NSWindow {
           return
         }
         self.setExpanded(expanded, completion: { result(nil) })
+      case "setPreferredLanguage":
+        let languageCode: String?
+        if call.arguments == nil || call.arguments is NSNull {
+          languageCode = nil
+        } else if
+          let argument = call.arguments as? String,
+          argument == "zh" || argument == "en"
+        {
+          languageCode = argument
+        } else {
+          result(
+            FlutterError(
+              code: "invalid_argument",
+              message: "setPreferredLanguage expects null, \"zh\", or \"en\".",
+              details: nil
+            )
+          )
+          return
+        }
+        NativeCopy.preferredLanguageCode = languageCode
+        self.collapsedDragOverlay?.refreshLocalizedContent()
+        result(nil)
       default:
         result(FlutterMethodNotImplemented)
       }
     }
     windowChannel = channel
+  }
+
+  private func configureUpdateService(
+    for flutterViewController: FlutterViewController
+  ) {
+    let updateService = UpdateService()
+    updateService.configure(
+      binaryMessenger: flutterViewController.engine.binaryMessenger
+    )
+    self.updateService = updateService
   }
 
   private func configureDragOverlay(for view: NSView) {
@@ -364,7 +398,12 @@ final class MainFlutterWindow: NSWindow {
 }
 
 private enum NativeCopy {
+  static var preferredLanguageCode: String?
+
   private static var usesChinese: Bool {
+    if let preferredLanguageCode {
+      return preferredLanguageCode == "zh"
+    }
     guard let preferredLanguage = Locale.preferredLanguages.first else {
       return false
     }
@@ -395,6 +434,10 @@ private final class CollapsedDragOverlayView: NSView {
     super.init(frame: frameRect)
     setAccessibilityElement(true)
     setAccessibilityRole(.button)
+    refreshLocalizedContent()
+  }
+
+  func refreshLocalizedContent() {
     setAccessibilityLabel(NativeCopy.openFloatick)
   }
 

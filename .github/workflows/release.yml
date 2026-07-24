@@ -5,132 +5,337 @@ on:
     tags:
       - 'v*'
 
-permissions:
-  contents: write
+permissions: {}
+
+concurrency:
+  group: stable-release-${{ github.ref }}
+  cancel-in-progress: false
 
 env:
-  FLUTTER_VERSION: 3.44.7
   PRODUCT_NAME: Floatick
+  SPARKLE_VERSION: 2.9.2
+  SPARKLE_ARCHIVE_SHA256: 1cb340cbbef04c6c0d162078610c25e2221031d794a3449d89f2f56f4df77c95
 
 jobs:
-  release:
-    name: Build and publish unsigned DMG
+  verify:
+    name: Verify tested draft release
     runs-on: macos-15
-    timeout-minutes: 45
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    outputs:
+      app_version: ${{ steps.release.outputs.app_version }}
+      release_commit: ${{ steps.release.outputs.release_commit }}
+      candidate_tag: ${{ steps.release.outputs.candidate_tag }}
+      already_published: ${{ steps.release.outputs.already_published }}
 
     steps:
-      - name: Check out repository
+      - name: Check out tagged commit
         uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
-      - name: Validate release version
-        id: version
+      - name: Validate stable tag and locate tested release
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
-          app_version=$(awk '/^version:/{print $2}' pubspec.yaml | cut -d+ -f1)
-          expected_tag="v$app_version"
-          if [[ "$GITHUB_REF_NAME" != "$expected_tag" ]]; then
-            echo "Tag $GITHUB_REF_NAME does not match pubspec version $app_version." >&2
+          if [[ ! "$GITHUB_REF_NAME" =~ ^v([0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
+            echo "Stable release tags must use vMAJOR.MINOR.PATCH." >&2
             exit 1
           fi
+
+          app_version="${BASH_REMATCH[1]}"
+          full_version=$(awk '/^version:/{print $2}' pubspec.yaml)
+          pubspec_version=${full_version%%+*}
+          app_build_number=${full_version#*+}
+          if [[ "$full_version" == "$pubspec_version" ||
+                ! "$app_build_number" =~ ^[1-9][0-9]*$ ]]; then
+            echo "pubspec version must include a positive build number." >&2
+            exit 1
+          fi
+          if [[ "$pubspec_version" != "$app_version" ]]; then
+            echo "Tag $GITHUB_REF_NAME does not match pubspec version $pubspec_version." >&2
+            exit 1
+          fi
+
+          release_commit=$(git rev-parse "${GITHUB_SHA}^{commit}")
+          git fetch origin main
+          if ! git merge-base --is-ancestor "$release_commit" origin/main; then
+            echo "Tagged commit $release_commit is not contained in main." >&2
+            exit 1
+          fi
+
+          candidate_tag="candidate/$GITHUB_REF_NAME"
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            is_draft=$(gh release view "$GITHUB_REF_NAME" \
+              --json isDraft \
+              --jq '.isDraft')
+            if [[ "$is_draft" == "true" ]]; then
+              echo "Unexpected draft already associated with $GITHUB_REF_NAME." >&2
+              exit 1
+            fi
+            source_release_tag="$GITHUB_REF_NAME"
+            already_published=true
+          else
+            if ! gh release view "$candidate_tag" >/dev/null 2>&1; then
+              echo "No tested Draft Release exists for $candidate_tag." >&2
+              exit 1
+            fi
+            is_draft=$(gh release view "$candidate_tag" \
+              --json isDraft \
+              --jq '.isDraft')
+            if [[ "$is_draft" != "true" ]]; then
+              echo "Candidate release $candidate_tag is not a draft." >&2
+              exit 1
+            fi
+            candidate_commit=$(git rev-list -n 1 "$candidate_tag")
+            if [[ "$candidate_commit" != "$release_commit" ]]; then
+              echo "Tag points to $release_commit, but tested candidate is $candidate_commit." >&2
+              exit 1
+            fi
+            source_release_tag="$candidate_tag"
+            already_published=false
+          fi
+
           echo "app_version=$app_version" >> "$GITHUB_OUTPUT"
+          echo "app_build_number=$app_build_number" >> "$GITHUB_OUTPUT"
+          echo "release_commit=$release_commit" >> "$GITHUB_OUTPUT"
+          echo "candidate_tag=$candidate_tag" >> "$GITHUB_OUTPUT"
+          echo "source_release_tag=$source_release_tag" >> "$GITHUB_OUTPUT"
+          echo "already_published=$already_published" >> "$GITHUB_OUTPUT"
 
-      - name: Install Flutter
+      - name: Download tested candidate assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_RELEASE_TAG: ${{ steps.release.outputs.source_release_tag }}
         shell: bash
         run: |
-          git clone \
-            --branch "$FLUTTER_VERSION" \
-            --depth 1 \
-            https://github.com/flutter/flutter.git \
-            "$RUNNER_TEMP/flutter"
-          echo "$RUNNER_TEMP/flutter/bin" >> "$GITHUB_PATH"
+          mkdir -p "$RUNNER_TEMP/artifacts"
+          gh release download "$SOURCE_RELEASE_TAG" \
+            --dir "$RUNNER_TEMP/artifacts"
 
-      - name: Install dependencies
-        run: flutter pub get
-
-      - name: Verify source
-        run: |
-          dart format --output=none --set-exit-if-changed lib test
-          flutter analyze
-          flutter test
-
-      - name: Build release app
+      - name: Verify candidate manifest and app
         env:
-          APP_VERSION: ${{ steps.version.outputs.app_version }}
-        run: |
-          flutter build macos \
-            --release \
-            --build-name "$APP_VERSION" \
-            --build-number "$GITHUB_RUN_NUMBER"
-
-      - name: Verify app architectures
-        shell: bash
-        run: |
-          app_path="build/macos/Build/Products/Release/$PRODUCT_NAME.app"
-          executable_name=$(/usr/libexec/PlistBuddy \
-            -c 'Print :CFBundleExecutable' \
-            "$app_path/Contents/Info.plist")
-          architectures=$(lipo -archs "$app_path/Contents/MacOS/$executable_name")
-
-          if [[ "$architectures" != *arm64* || "$architectures" != *x86_64* ]]; then
-            echo "Expected a universal app, found: $architectures" >&2
-            exit 1
-          fi
-
-      - name: Create DMG and checksum
-        id: package
-        env:
-          APP_VERSION: ${{ steps.version.outputs.app_version }}
+          APP_VERSION: ${{ steps.release.outputs.app_version }}
+          APP_BUILD_NUMBER: ${{ steps.release.outputs.app_build_number }}
+          RELEASE_COMMIT: ${{ steps.release.outputs.release_commit }}
         shell: bash
         run: |
           artifact_directory="$RUNNER_TEMP/artifacts"
           dmg_name="$PRODUCT_NAME-$APP_VERSION-macos-universal.dmg"
           dmg_path="$artifact_directory/$dmg_name"
+          checksum_path="$dmg_path.sha256"
+          manifest_path="$artifact_directory/$PRODUCT_NAME-$APP_VERSION-release-manifest.json"
 
-          tool/release/create_dmg.sh \
-            "build/macos/Build/Products/Release/$PRODUCT_NAME.app" \
-            "$dmg_path" \
-            "$PRODUCT_NAME"
-
+          test -f "$dmg_path"
+          test -f "$checksum_path"
+          test -f "$manifest_path"
           (
             cd "$artifact_directory"
-            shasum -a 256 "$dmg_name" > "$dmg_name.sha256"
+            shasum -a 256 --check "$dmg_name.sha256"
           )
+          dmg_sha256=$(awk '{print $1}' "$checksum_path")
+          jq -e \
+            --arg product "$PRODUCT_NAME" \
+            --arg version "$APP_VERSION" \
+            --arg build_number "$APP_BUILD_NUMBER" \
+            --arg commit "$RELEASE_COMMIT" \
+            --arg dmg "$dmg_name" \
+            --arg sha256 "$dmg_sha256" \
+            '.product == $product
+              and .version == $version
+              and .build_number == $build_number
+              and .commit == $commit
+              and .dmg == $dmg
+              and .sha256 == $sha256' \
+            "$manifest_path"
 
-          echo "dmg_name=$dmg_name" >> "$GITHUB_OUTPUT"
-          echo "dmg_path=$dmg_path" >> "$GITHUB_OUTPUT"
+          mount_point="$RUNNER_TEMP/floatick-dmg"
+          mkdir -p "$mount_point"
+          hdiutil attach "$dmg_path" \
+            -nobrowse \
+            -readonly \
+            -mountpoint "$mount_point"
+          trap 'hdiutil detach "$mount_point" >/dev/null 2>&1 || true' EXIT
 
-      - name: Publish GitHub Release
-        env:
-          GH_TOKEN: ${{ github.token }}
-          DMG_NAME: ${{ steps.package.outputs.dmg_name }}
-          DMG_PATH: ${{ steps.package.outputs.dmg_path }}
-        shell: bash
-        run: |
-          notes_path="$RUNNER_TEMP/release-notes.md"
-          cat > "$notes_path" <<'EOF'
-          ## 温馨提示
+          app_path="$mount_point/$PRODUCT_NAME.app"
+          info_plist="$app_path/Contents/Info.plist"
+          installed_version=$(/usr/libexec/PlistBuddy \
+            -c 'Print :CFBundleShortVersionString' \
+            "$info_plist")
+          installed_build=$(/usr/libexec/PlistBuddy \
+            -c 'Print :CFBundleVersion' \
+            "$info_plist")
+          executable_name=$(/usr/libexec/PlistBuddy \
+            -c 'Print :CFBundleExecutable' \
+            "$info_plist")
+          architectures=$(lipo -archs "$app_path/Contents/MacOS/$executable_name")
 
-          Floatick 目前仍处于早期版本。第一次打开时，如果 macOS 需要额外
-          确认，请先尝试打开一次 Floatick，然后前往“系统设置”→
-          “隐私与安全”，在“安全性”区域点击“仍要打开”。
-
-          完成一次确认后，后续就可以正常启动。下载页面同时提供 SHA-256
-          校验文件。
-          EOF
-
-          release_flags=(
-            --verify-tag
-            --generate-notes
-            --notes-file "$notes_path"
-            --title "$PRODUCT_NAME $GITHUB_REF_NAME"
-          )
-          if [[ "$GITHUB_REF_NAME" == *-* ]]; then
-            release_flags+=(--prerelease)
+          if [[ "$installed_version" != "$APP_VERSION" ||
+                "$installed_build" != "$APP_BUILD_NUMBER" ]]; then
+            echo "DMG contains version $installed_version+$installed_build." >&2
+            exit 1
+          fi
+          if [[ "$architectures" != *arm64* || "$architectures" != *x86_64* ]]; then
+            echo "Expected a universal app, found: $architectures" >&2
+            exit 1
           fi
 
-          gh release create "$GITHUB_REF_NAME" \
-            "$DMG_PATH#$DMG_NAME" \
-            "$DMG_PATH.sha256#$DMG_NAME.sha256" \
-            "${release_flags[@]}"
+          hdiutil detach "$mount_point"
+          trap - EXIT
+
+      - name: Prepare final release notes
+        env:
+          GH_TOKEN: ${{ github.token }}
+          APP_VERSION: ${{ steps.release.outputs.app_version }}
+          RELEASE_COMMIT: ${{ steps.release.outputs.release_commit }}
+        shell: bash
+        run: |
+          generated_notes="$RUNNER_TEMP/generated-notes.md"
+          final_notes="$RUNNER_TEMP/release-notes.md"
+          gh api \
+            --method POST \
+            "repos/$GITHUB_REPOSITORY/releases/generate-notes" \
+            -f tag_name="$GITHUB_REF_NAME" \
+            -f target_commitish="$RELEASE_COMMIT" \
+            --jq '.body' > "$generated_notes"
+          {
+            cat .github/release-notes-header.md
+            printf '\n\n'
+            cat "$generated_notes"
+          } > "$final_notes"
+
+          dmg_name="$PRODUCT_NAME-$APP_VERSION-macos-universal.dmg"
+          cp "$final_notes" \
+            "$RUNNER_TEMP/artifacts/${dmg_name%.dmg}.md"
+          cp "$final_notes" \
+            "$RUNNER_TEMP/artifacts/release-notes.md"
+
+      - name: Upload verified release assets
+        uses: actions/upload-artifact@v7
+        with:
+          name: verified-release-${{ steps.release.outputs.app_version }}
+          path: ${{ runner.temp }}/artifacts
+          compression-level: 0
+          retention-days: 7
+
+  promote:
+    name: Promote tested draft release
+    needs: verify
+    runs-on: macos-15
+    timeout-minutes: 20
+    permissions:
+      contents: write
+      pages: write
+    environment:
+      name: production
+
+    steps:
+      - name: Download verified release assets
+        uses: actions/download-artifact@v8
+        with:
+          name: verified-release-${{ needs.verify.outputs.app_version }}
+          path: ${{ runner.temp }}/artifacts
+
+      - name: Generate signed Sparkle appcast
+        env:
+          SPARKLE_ED_PRIVATE_KEY: ${{ secrets.SPARKLE_ED_PRIVATE_KEY }}
+        shell: bash
+        run: |
+          sparkle_archive="$RUNNER_TEMP/Sparkle-$SPARKLE_VERSION.tar.xz"
+          sparkle_directory="$RUNNER_TEMP/sparkle"
+          download_prefix="https://github.com/$GITHUB_REPOSITORY/releases/download/$GITHUB_REF_NAME/"
+
+          if [[ -z "$SPARKLE_ED_PRIVATE_KEY" ]]; then
+            echo "SPARKLE_ED_PRIVATE_KEY is not configured." >&2
+            exit 1
+          fi
+
+          curl --fail --location --silent --show-error \
+            "https://github.com/sparkle-project/Sparkle/releases/download/$SPARKLE_VERSION/Sparkle-$SPARKLE_VERSION.tar.xz" \
+            --output "$sparkle_archive"
+          echo "$SPARKLE_ARCHIVE_SHA256  $sparkle_archive" \
+            | shasum -a 256 --check
+          mkdir -p "$sparkle_directory"
+          tar -xJf "$sparkle_archive" -C "$sparkle_directory"
+
+          printf '%s' "$SPARKLE_ED_PRIVATE_KEY" \
+            | "$sparkle_directory/bin/generate_appcast" \
+                --ed-key-file - \
+                --download-url-prefix "$download_prefix" \
+                --full-release-notes-url \
+                  "https://github.com/$GITHUB_REPOSITORY/releases/tag/$GITHUB_REF_NAME" \
+                --link "https://github.com/$GITHUB_REPOSITORY" \
+                --embed-release-notes \
+                --maximum-deltas 0 \
+                "$RUNNER_TEMP/artifacts"
+
+          test -s "$RUNNER_TEMP/artifacts/appcast.xml"
+          mkdir -p "$RUNNER_TEMP/pages"
+          cp "$RUNNER_TEMP/artifacts/appcast.xml" \
+            "$RUNNER_TEMP/pages/appcast.xml"
+
+      - name: Publish tested draft release
+        if: needs.verify.outputs.already_published == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CANDIDATE_TAG: ${{ needs.verify.outputs.candidate_tag }}
+        shell: bash
+        run: |
+          gh release edit "$CANDIDATE_TAG" \
+            --tag "$GITHUB_REF_NAME" \
+            --verify-tag \
+            --target "${{ needs.verify.outputs.release_commit }}" \
+            --title "$PRODUCT_NAME $GITHUB_REF_NAME" \
+            --notes-file "$RUNNER_TEMP/artifacts/release-notes.md" \
+            --draft=false \
+            --latest
+
+      - name: Refresh published release notes
+        if: needs.verify.outputs.already_published == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          gh release edit "$GITHUB_REF_NAME" \
+            --title "$PRODUCT_NAME $GITHUB_REF_NAME" \
+            --notes-file "$RUNNER_TEMP/artifacts/release-notes.md" \
+            --latest
+
+      - name: Remove candidate tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CANDIDATE_TAG: ${{ needs.verify.outputs.candidate_tag }}
+        shell: bash
+        run: |
+          if git ls-remote --exit-code --tags origin \
+            "refs/tags/$CANDIDATE_TAG" >/dev/null 2>&1; then
+            gh api \
+              --method DELETE \
+              "repos/$GITHUB_REPOSITORY/git/refs/tags/$CANDIDATE_TAG"
+          fi
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v6
+
+      - name: Upload Sparkle appcast for GitHub Pages
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: ${{ runner.temp }}/pages
+
+  deploy-appcast:
+    name: Deploy Sparkle appcast
+    needs: promote
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5

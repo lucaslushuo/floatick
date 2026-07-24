@@ -8,6 +8,7 @@ import '../features/settings/presentation/settings_view_model.dart';
 import '../features/todos/presentation/todo_panel.dart';
 import '../features/todos/presentation/todo_view_model.dart';
 import '../features/todos/presentation/widgets/floating_todo_icon.dart';
+import '../features/updates/presentation/update_view_model.dart';
 import '../l10n/app_localizations.dart';
 import 'theme/floatick_theme.dart';
 
@@ -15,6 +16,7 @@ class FloatickApp extends StatelessWidget {
   const FloatickApp({
     required this.controller,
     required this.settingsController,
+    required this.updateController,
     required this.windowBridge,
     this.locale,
     super.key,
@@ -22,6 +24,7 @@ class FloatickApp extends StatelessWidget {
 
   final TodoViewModel controller;
   final SettingsViewModel settingsController;
+  final UpdateViewModel updateController;
   final WindowBridge windowBridge;
   final Locale? locale;
 
@@ -30,11 +33,16 @@ class FloatickApp extends StatelessWidget {
     return AnimatedBuilder(
       animation: settingsController,
       builder: (context, _) {
+        final settingsLocale = switch (settingsController.languagePreference) {
+          AppLanguagePreference.system => null,
+          AppLanguagePreference.simplifiedChinese => const Locale('zh'),
+          AppLanguagePreference.english => const Locale('en'),
+        };
         return MaterialApp(
           onGenerateTitle: (context) =>
               AppLocalizations.of(context).applicationTitle,
           debugShowCheckedModeBanner: false,
-          locale: locale,
+          locale: locale ?? settingsLocale,
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
           theme: buildFloatickTheme(Brightness.light),
@@ -47,6 +55,7 @@ class FloatickApp extends StatelessWidget {
           home: _FloatickShell(
             controller: controller,
             settingsController: settingsController,
+            updateController: updateController,
             windowBridge: windowBridge,
           ),
         );
@@ -59,11 +68,13 @@ class _FloatickShell extends StatefulWidget {
   const _FloatickShell({
     required this.controller,
     required this.settingsController,
+    required this.updateController,
     required this.windowBridge,
   });
 
   final TodoViewModel controller;
   final SettingsViewModel settingsController;
+  final UpdateViewModel updateController;
   final WindowBridge windowBridge;
 
   @override
@@ -75,12 +86,16 @@ class _FloatickShellState extends State<_FloatickShell> {
 
   bool _isExpanded = false;
   bool _isChangingWindow = false;
+  bool _hasSyncedPreferredLanguage = false;
+  String? _lastSyncedLanguageCode;
   WindowExpansionAnchor _expansionAnchor = WindowExpansionAnchor.topRight;
 
   @override
   void initState() {
     super.initState();
     widget.windowBridge.setExpandRequestHandler(_handleNativeExpandRequest);
+    widget.settingsController.addListener(_handleSettingsChanged);
+    unawaited(_syncPreferredLanguage());
   }
 
   @override
@@ -89,13 +104,51 @@ class _FloatickShellState extends State<_FloatickShell> {
     if (oldWidget.windowBridge != widget.windowBridge) {
       oldWidget.windowBridge.setExpandRequestHandler(null);
       widget.windowBridge.setExpandRequestHandler(_handleNativeExpandRequest);
+      _hasSyncedPreferredLanguage = false;
+    }
+    if (oldWidget.settingsController != widget.settingsController) {
+      oldWidget.settingsController.removeListener(_handleSettingsChanged);
+      widget.settingsController.addListener(_handleSettingsChanged);
+      _hasSyncedPreferredLanguage = false;
+    }
+    if (!_hasSyncedPreferredLanguage) {
+      unawaited(_syncPreferredLanguage());
     }
   }
 
   @override
   void dispose() {
     widget.windowBridge.setExpandRequestHandler(null);
+    widget.settingsController.removeListener(_handleSettingsChanged);
     super.dispose();
+  }
+
+  void _handleSettingsChanged() {
+    unawaited(_syncPreferredLanguage());
+  }
+
+  Future<void> _syncPreferredLanguage() async {
+    final languageCode = switch (widget.settingsController.languagePreference) {
+      AppLanguagePreference.system => null,
+      AppLanguagePreference.simplifiedChinese => 'zh',
+      AppLanguagePreference.english => 'en',
+    };
+    if (_hasSyncedPreferredLanguage &&
+        languageCode == _lastSyncedLanguageCode) {
+      return;
+    }
+
+    _hasSyncedPreferredLanguage = true;
+    _lastSyncedLanguageCode = languageCode;
+    try {
+      await widget.windowBridge.setPreferredLanguage(languageCode);
+    } on Object catch (error, stackTrace) {
+      if (_lastSyncedLanguageCode == languageCode) {
+        _hasSyncedPreferredLanguage = false;
+      }
+      debugPrint('Floatick could not update the native language: $error');
+      debugPrintStack(stackTrace: stackTrace);
+    }
   }
 
   void _handleNativeExpandRequest(WindowExpansionAnchor expansionAnchor) {
@@ -196,6 +249,7 @@ class _FloatickShellState extends State<_FloatickShell> {
                   key: const ValueKey('todo-panel'),
                   controller: widget.controller,
                   settingsController: widget.settingsController,
+                  updateController: widget.updateController,
                   windowBridge: widget.windowBridge,
                   onCollapse: () => unawaited(_setExpanded(false)),
                 )

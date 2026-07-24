@@ -17,6 +17,7 @@ class SettingsViewModel extends ChangeNotifier {
 
   AppSettings get settings => _settings;
   AppThemePreference get themePreference => _settings.themePreference;
+  AppLanguagePreference get languagePreference => _settings.languagePreference;
   StorageFailure? get error => _error;
   bool get isLoading => _isLoading;
   bool get isSaving => _isSaving;
@@ -43,8 +44,20 @@ class SettingsViewModel extends ChangeNotifier {
       return;
     }
 
+    await _save(_settings.copyWith(themePreference: preference));
+  }
+
+  Future<void> setLanguagePreference(AppLanguagePreference preference) async {
+    if (_isSaving || preference == _settings.languagePreference) {
+      return;
+    }
+
+    await _save(_settings.copyWith(languagePreference: preference));
+  }
+
+  Future<void> _save(AppSettings nextSettings) async {
     final previousSettings = _settings;
-    _settings = _settings.copyWith(themePreference: preference);
+    _settings = nextSettings;
     _error = null;
     _isSaving = true;
     notifyListeners();

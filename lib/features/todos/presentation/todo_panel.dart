@@ -9,6 +9,7 @@ import '../../../l10n/l10n.dart';
 import '../../../l10n/storage_failure_localizations.dart';
 import '../../settings/presentation/settings_drawer.dart';
 import '../../settings/presentation/settings_view_model.dart';
+import '../../updates/presentation/update_view_model.dart';
 import '../domain/todo_item.dart';
 import 'todo_view_model.dart';
 
@@ -25,6 +26,7 @@ class TodoPanel extends StatefulWidget {
   const TodoPanel({
     required this.controller,
     required this.settingsController,
+    required this.updateController,
     required this.windowBridge,
     required this.onCollapse,
     super.key,
@@ -32,6 +34,7 @@ class TodoPanel extends StatefulWidget {
 
   final TodoViewModel controller;
   final SettingsViewModel settingsController;
+  final UpdateViewModel updateController;
   final WindowBridge windowBridge;
   final VoidCallback onCollapse;
 
@@ -355,6 +358,7 @@ class _TodoPanelState extends State<TodoPanel> {
                                 child: FocusTraversalGroup(
                                   child: SettingsDrawer(
                                     viewModel: widget.settingsController,
+                                    updateViewModel: widget.updateController,
                                     workingDirectoryPath:
                                         widget.controller.storageDirectoryPath,
                                     onClose: _closeSettings,

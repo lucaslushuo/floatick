@@ -8,6 +8,9 @@ import 'package:floatick/features/todos/data/todo_repository.dart';
 import 'package:floatick/features/todos/domain/todo_item.dart';
 import 'package:floatick/features/todos/presentation/todo_view_model.dart';
 import 'package:floatick/features/todos/presentation/widgets/floating_todo_icon.dart';
+import 'package:floatick/features/updates/data/update_repository.dart';
+import 'package:floatick/features/updates/domain/update_settings_snapshot.dart';
+import 'package:floatick/features/updates/presentation/update_view_model.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -33,13 +36,19 @@ void main() {
     final settingsController = SettingsViewModel(
       settingsRepository: settingsRepository,
     );
+    final updateRepository = _WidgetTestUpdateRepository();
+    final updateController = UpdateViewModel(
+      updateRepository: updateRepository,
+    );
     await controller.load();
     await settingsController.load();
+    await updateController.load();
 
     await tester.pumpWidget(
       FloatickApp(
         controller: controller,
         settingsController: settingsController,
+        updateController: updateController,
         windowBridge: windowBridge,
         locale: const Locale('zh'),
       ),
@@ -78,6 +87,9 @@ void main() {
     expect(find.byKey(const Key('settings-drawer')), findsOneWidget);
     expect(find.byType(Dialog), findsNothing);
     expect(find.text('设置'), findsOneWidget);
+    expect(find.text('语言'), findsOneWidget);
+    expect(find.text('更新'), findsOneWidget);
+    expect(find.text('版本 0.1.0'), findsOneWidget);
     expect(find.text('工作目录'), findsOneWidget);
     expect(find.text('/tmp/floatick-widget-test'), findsOneWidget);
     expect(find.byIcon(Icons.folder_open_rounded), findsNothing);
@@ -89,6 +101,11 @@ void main() {
     expect(find.byKey(const Key('theme-system')), findsOneWidget);
     expect(find.byKey(const Key('theme-light')), findsOneWidget);
     expect(find.byKey(const Key('theme-dark')), findsOneWidget);
+    expect(find.byKey(const Key('language-system')), findsOneWidget);
+    expect(find.byKey(const Key('language-zh')), findsOneWidget);
+    expect(find.byKey(const Key('language-en')), findsOneWidget);
+    expect(find.byKey(const Key('automatic-update-checks')), findsOneWidget);
+    expect(find.byKey(const Key('check-for-updates')), findsOneWidget);
     expect(
       tester
           .widget<AnimatedSlide>(find.byKey(const Key('settings-drawer-slide')))
@@ -111,6 +128,15 @@ void main() {
       systemThemeButton.style?.backgroundColor?.resolve(<WidgetState>{}),
       Colors.transparent,
     );
+
+    await tester.tap(find.byKey(const Key('automatic-update-checks')));
+    await tester.pumpAndSettle();
+    expect(updateController.automaticallyChecksForUpdates, isFalse);
+    expect(updateRepository.automaticallyChecksForUpdates, isFalse);
+
+    await tester.tap(find.byKey(const Key('check-for-updates')));
+    await tester.pumpAndSettle();
+    expect(updateRepository.checkCount, 1);
 
     await tester.tap(find.byKey(const Key('theme-dark')));
     await tester.pumpAndSettle();
@@ -236,14 +262,19 @@ void main() {
     final settingsController = SettingsViewModel(
       settingsRepository: _WidgetTestSettingsRepository(),
     );
+    final updateController = UpdateViewModel(
+      updateRepository: _WidgetTestUpdateRepository(),
+    );
     final windowBridge = _WidgetTestWindowBridge();
     await controller.load();
     await settingsController.load();
+    await updateController.load();
 
     await tester.pumpWidget(
       FloatickApp(
         controller: controller,
         settingsController: settingsController,
+        updateController: updateController,
         windowBridge: windowBridge,
         locale: const Locale('en'),
       ),
@@ -266,8 +297,81 @@ void main() {
 
     expect(find.text('Settings'), findsOneWidget);
     expect(find.text('Appearance'), findsOneWidget);
+    expect(find.text('Language'), findsOneWidget);
+    expect(find.text('Updates'), findsOneWidget);
+    expect(find.text('Version 0.1.0'), findsOneWidget);
     expect(find.text('Working directory'), findsOneWidget);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('settings switch the interface and native menu language', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(500, 760);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final controller = TodoViewModel(todoRepository: _WidgetTestRepository());
+    final settingsRepository = _WidgetTestSettingsRepository();
+    final settingsController = SettingsViewModel(
+      settingsRepository: settingsRepository,
+    );
+    final updateController = UpdateViewModel(
+      updateRepository: _WidgetTestUpdateRepository(),
+    );
+    final windowBridge = _WidgetTestWindowBridge();
+    await controller.load();
+    await settingsController.load();
+    await updateController.load();
+
+    await tester.pumpWidget(
+      FloatickApp(
+        controller: controller,
+        settingsController: settingsController,
+        updateController: updateController,
+        windowBridge: windowBridge,
+      ),
+    );
+    await tester.pump();
+
+    windowBridge.expandRequestHandler?.call(WindowExpansionAnchor.topRight);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('settings-button')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Language'), findsOneWidget);
+    expect(
+      tester
+          .widget<IconButton>(find.byKey(const Key('language-system')))
+          .isSelected,
+      isTrue,
+    );
+
+    await tester.tap(find.byKey(const Key('language-zh')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('语言'), findsOneWidget);
+    expect(find.text('工作目录'), findsOneWidget);
+    expect(
+      settingsController.languagePreference,
+      AppLanguagePreference.simplifiedChinese,
+    );
+    expect(
+      settingsRepository.savedSettings.languagePreference,
+      AppLanguagePreference.simplifiedChinese,
+    );
+
+    await tester.tap(find.byKey(const Key('language-en')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Language'), findsOneWidget);
+    expect(find.text('Working directory'), findsOneWidget);
+    expect(
+      settingsController.languagePreference,
+      AppLanguagePreference.english,
+    );
+    expect(windowBridge.preferredLanguageValues, <String?>[null, 'zh', 'en']);
   });
 }
 
@@ -303,8 +407,32 @@ class _WidgetTestRepository implements TodoRepository {
   }
 }
 
+class _WidgetTestUpdateRepository implements UpdateRepository {
+  bool automaticallyChecksForUpdates = true;
+  int checkCount = 0;
+
+  @override
+  Future<UpdateSettingsSnapshot> loadSettings() async {
+    return UpdateSettingsSnapshot(
+      automaticallyChecksForUpdates: automaticallyChecksForUpdates,
+      currentVersion: '0.1.0',
+    );
+  }
+
+  @override
+  Future<void> setAutomaticallyChecksForUpdates(bool enabled) async {
+    automaticallyChecksForUpdates = enabled;
+  }
+
+  @override
+  Future<void> checkForUpdates() async {
+    checkCount += 1;
+  }
+}
+
 class _WidgetTestWindowBridge implements WindowBridge {
   final List<bool> expandedValues = <bool>[];
+  final List<String?> preferredLanguageValues = <String?>[];
   ExpandRequestHandler? expandRequestHandler;
 
   @override
@@ -320,5 +448,10 @@ class _WidgetTestWindowBridge implements WindowBridge {
   @override
   Future<void> setExpanded(bool expanded) async {
     expandedValues.add(expanded);
+  }
+
+  @override
+  Future<void> setPreferredLanguage(String? languageCode) async {
+    preferredLanguageValues.add(languageCode);
   }
 }

@@ -13,9 +13,10 @@ app          -> features + core
 macOS shell  <-> core/platform through MethodChannel
 ```
 
-Feature code must not import another feature's data layer. Cross-feature UI
-composition belongs in `lib/app`, while reusable platform and visual primitives
-belong in `lib/core`.
+Feature code must not import another feature's data layer. App assembly belongs
+in `lib/app`; screen-level presentation may compose injected ViewModels from
+multiple features without reaching into their data implementations. Reusable
+platform and visual primitives belong in `lib/core`.
 
 ## Directory layout
 
@@ -41,6 +42,10 @@ lib/
       domain/
       presentation/
         widgets/
+    updates/
+      data/
+      domain/
+      presentation/
 test/
   app/
   features/
@@ -53,21 +58,25 @@ tool/
 - `domain`: immutable app models and domain concepts.
 - `data`: local persistence and serialization boundaries.
 - `presentation`: Views and `ChangeNotifier` ViewModels.
-- `core/platform`: typed wrappers around native platform channels.
+- `core/platform`: shared typed wrappers around native window channels.
 - `core/storage`: shared storage failure types used at repository boundaries.
 - `l10n`: English source copy, Simplified Chinese translations, and generated
   Flutter localization accessors.
-- `macos/Runner`: transparent floating window behavior only; todo data does not
-  cross the platform channel.
+- `macos/Runner`: transparent floating window behavior and the Sparkle update
+  service; todo data does not cross either platform channel.
 
 ## State and persistence
 
-`TodoViewModel` and `SettingsViewModel` own presentation state. Repositories
-own file I/O and JSON compatibility. Repositories are constructor-injected so
-state behavior can be tested without touching the user's home directory.
+`TodoViewModel`, `SettingsViewModel`, and `UpdateViewModel` own presentation
+state. Repositories own file I/O, JSON compatibility, or typed platform-channel
+boundaries. Repositories are constructor-injected so state behavior can be
+tested without touching the user's home directory or launching Sparkle.
 
-The only storage directory is `~/.floatick`. Repositories create it on first
-load and never read or write another hidden application directory.
+Todo data and Floatick-owned interface settings only use `~/.floatick`.
+Repositories create it on first load and never read or write another hidden
+application directory. Sparkle owns its automatic-check preference in the
+standard macOS application `UserDefaults`; Floatick does not duplicate that
+preference in `settings.json`.
 
 Writes are serialized by `TodoViewModel` to prevent overlapping mutations from
 losing updates. A write failure leaves the last persisted in-memory state
@@ -78,8 +87,13 @@ unchanged and exposes a recoverable UI error.
 - Repository tests cover local JSON parsing, compatibility, and failure paths.
 - ViewModel tests cover mutations, serialization order, filtering, and sorting.
 - Widget tests cover the main interaction path and theme/settings behavior.
-- AppKit window behavior remains a native integration boundary and should be
-  smoke-tested on both Apple silicon and Intel macOS before a stable release.
+- Pull requests compile a release-mode universal macOS app in addition to
+  running Flutter analysis and tests.
+- `release/x.y.z` builds a private Draft Release; `vX.Y.Z` promotes the same
+  accepted DMG only when its commit is reachable from `main`.
+- AppKit window behavior and Sparkle installation remain native integration
+  boundaries and should be smoke-tested on both Apple silicon and Intel macOS
+  before a stable release.
 
 ## Architecture guardrails
 
