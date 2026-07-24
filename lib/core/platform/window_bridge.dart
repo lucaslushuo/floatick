@@ -23,6 +23,8 @@ abstract interface class WindowBridge {
   Future<WindowExpansionAnchor> preferredExpansionAnchor();
 
   Future<void> setExpanded(bool expanded);
+
+  Future<void> setPreferredLanguage(String? languageCode);
 }
 
 class MethodChannelWindowBridge implements WindowBridge {
@@ -49,6 +51,11 @@ class MethodChannelWindowBridge implements WindowBridge {
   @override
   Future<void> setExpanded(bool expanded) {
     return _channel.invokeMethod<void>('setExpanded', expanded);
+  }
+
+  @override
+  Future<void> setPreferredLanguage(String? languageCode) {
+    return _channel.invokeMethod<void>('setPreferredLanguage', languageCode);
   }
 
   Future<void> _handleNativeMethod(MethodCall call) async {

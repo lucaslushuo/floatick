@@ -15,14 +15,16 @@ void main() {
     controller = SettingsViewModel(settingsRepository: repository);
   });
 
-  test('load exposes the persisted theme preference', () async {
+  test('load exposes persisted appearance preferences', () async {
     repository.savedSettings = const AppSettings(
       themePreference: AppThemePreference.dark,
+      languagePreference: AppLanguagePreference.english,
     );
 
     await controller.load();
 
     expect(controller.themePreference, AppThemePreference.dark);
+    expect(controller.languagePreference, AppLanguagePreference.english);
     expect(controller.error, isNull);
   });
 
@@ -54,6 +56,51 @@ void main() {
     await controller.setThemePreference(AppThemePreference.light);
 
     expect(controller.themePreference, AppThemePreference.dark);
+    expect(controller.error?.kind, StorageFailureKind.write);
+    expect(controller.isSaving, isFalse);
+  });
+
+  test(
+    'language changes immediately and persists the new preference',
+    () async {
+      await controller.load();
+      final saveCompleter = Completer<void>();
+      repository.pendingSave = saveCompleter;
+
+      final operation = controller.setLanguagePreference(
+        AppLanguagePreference.simplifiedChinese,
+      );
+
+      expect(
+        controller.languagePreference,
+        AppLanguagePreference.simplifiedChinese,
+      );
+      expect(controller.isSaving, isTrue);
+
+      saveCompleter.complete();
+      await operation;
+
+      expect(
+        repository.savedSettings.languagePreference,
+        AppLanguagePreference.simplifiedChinese,
+      );
+      expect(controller.isSaving, isFalse);
+      expect(controller.error, isNull);
+    },
+  );
+
+  test('a failed language save rolls the visible preference back', () async {
+    repository.savedSettings = const AppSettings(
+      languagePreference: AppLanguagePreference.english,
+    );
+    await controller.load();
+    repository.failNextSave = true;
+
+    await controller.setLanguagePreference(
+      AppLanguagePreference.simplifiedChinese,
+    );
+
+    expect(controller.languagePreference, AppLanguagePreference.english);
     expect(controller.error?.kind, StorageFailureKind.write);
     expect(controller.isSaving, isFalse);
   });

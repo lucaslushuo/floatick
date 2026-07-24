@@ -128,6 +128,84 @@ abstract class AppLocalizations {
   /// **'Appearance'**
   String get appearanceSectionTitle;
 
+  /// No description provided for @languageSectionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Language'**
+  String get languageSectionTitle;
+
+  /// No description provided for @languageSystemTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Follow system'**
+  String get languageSystemTooltip;
+
+  /// No description provided for @languageSimplifiedChineseTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Simplified Chinese'**
+  String get languageSimplifiedChineseTooltip;
+
+  /// No description provided for @languageEnglishTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'English'**
+  String get languageEnglishTooltip;
+
+  /// No description provided for @updatesSectionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Updates'**
+  String get updatesSectionTitle;
+
+  /// No description provided for @currentVersionLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Version {version}'**
+  String currentVersionLabel(String version);
+
+  /// No description provided for @automaticUpdateChecksLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Automatically check for updates'**
+  String get automaticUpdateChecksLabel;
+
+  /// No description provided for @automaticUpdateChecksDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Checks daily and asks before installing'**
+  String get automaticUpdateChecksDescription;
+
+  /// No description provided for @checkForUpdatesButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Check for updates'**
+  String get checkForUpdatesButton;
+
+  /// No description provided for @checkingForUpdatesButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Checking…'**
+  String get checkingForUpdatesButton;
+
+  /// No description provided for @updateSettingsLoadError.
+  ///
+  /// In en, this message translates to:
+  /// **'Update settings are unavailable.'**
+  String get updateSettingsLoadError;
+
+  /// No description provided for @updateSettingsSaveError.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t change update settings.'**
+  String get updateSettingsSaveError;
+
+  /// No description provided for @updateCheckError.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t check for updates.'**
+  String get updateCheckError;
+
   /// No description provided for @workingDirectorySectionTitle.
   ///
   /// In en, this message translates to:

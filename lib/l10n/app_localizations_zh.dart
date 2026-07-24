@@ -24,6 +24,47 @@ class AppLocalizationsZh extends AppLocalizations {
   String get appearanceSectionTitle => '外观';
 
   @override
+  String get languageSectionTitle => '语言';
+
+  @override
+  String get languageSystemTooltip => '跟随系统';
+
+  @override
+  String get languageSimplifiedChineseTooltip => '简体中文';
+
+  @override
+  String get languageEnglishTooltip => 'English';
+
+  @override
+  String get updatesSectionTitle => '更新';
+
+  @override
+  String currentVersionLabel(String version) {
+    return '版本 $version';
+  }
+
+  @override
+  String get automaticUpdateChecksLabel => '自动检查更新';
+
+  @override
+  String get automaticUpdateChecksDescription => '每天检查一次，安装前会询问你';
+
+  @override
+  String get checkForUpdatesButton => '检查更新';
+
+  @override
+  String get checkingForUpdatesButton => '正在检查…';
+
+  @override
+  String get updateSettingsLoadError => '暂时无法读取更新设置。';
+
+  @override
+  String get updateSettingsSaveError => '无法修改更新设置。';
+
+  @override
+  String get updateCheckError => '暂时无法检查更新。';
+
+  @override
   String get workingDirectorySectionTitle => '工作目录';
 
   @override

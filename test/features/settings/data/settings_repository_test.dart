@@ -25,29 +25,72 @@ void main() {
     }
   });
 
-  test('missing storage creates the directory and uses system theme', () async {
-    final settings = await repository.load();
+  test(
+    'missing storage creates the directory and uses system defaults',
+    () async {
+      final settings = await repository.load();
 
-    expect(settings, const AppSettings());
-    expect(settings.themePreference, AppThemePreference.system);
-    expect(await repository.rootDirectory.exists(), isTrue);
-  });
+      expect(settings, const AppSettings());
+      expect(settings.themePreference, AppThemePreference.system);
+      expect(settings.languagePreference, AppLanguagePreference.system);
+      expect(await repository.rootDirectory.exists(), isTrue);
+    },
+  );
 
   test('save and load preserve the versioned settings schema', () async {
-    const settings = AppSettings(themePreference: AppThemePreference.light);
+    const settings = AppSettings(
+      themePreference: AppThemePreference.light,
+      languagePreference: AppLanguagePreference.simplifiedChinese,
+    );
 
     await repository.save(settings);
     final loadedSettings = await repository.load();
     final json = jsonDecode(await File(repository.storagePath).readAsString());
 
     expect(loadedSettings, settings);
-    expect(json, <String, Object?>{'version': 1, 'theme': 'light'});
+    expect(json, <String, Object?>{
+      'version': 2,
+      'theme': 'light',
+      'language': 'zh',
+    });
+  });
+
+  test('version 1 settings default to the system language', () async {
+    await repository.rootDirectory.create(recursive: true);
+    await File(
+      repository.storagePath,
+    ).writeAsString('{"version": 1, "theme": "dark"}');
+
+    final settings = await repository.load();
+
+    expect(settings.themePreference, AppThemePreference.dark);
+    expect(settings.languagePreference, AppLanguagePreference.system);
   });
 
   test('damaged storage is reported and left unchanged', () async {
     await repository.rootDirectory.create(recursive: true);
     final file = File(repository.storagePath);
     const damagedContent = '{"version": 1, "theme": "sepia"}';
+    await file.writeAsString(damagedContent);
+
+    await expectLater(
+      repository.load(),
+      throwsA(
+        isA<StorageFailure>().having(
+          (error) => error.kind,
+          'kind',
+          StorageFailureKind.invalidData,
+        ),
+      ),
+    );
+    expect(await file.readAsString(), damagedContent);
+  });
+
+  test('unknown language is reported and left unchanged', () async {
+    await repository.rootDirectory.create(recursive: true);
+    final file = File(repository.storagePath);
+    const damagedContent =
+        '{"version": 2, "theme": "system", "language": "fr"}';
     await file.writeAsString(damagedContent);
 
     await expectLater(

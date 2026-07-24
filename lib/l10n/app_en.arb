@@ -5,6 +5,26 @@
   "openAppHint": "Drag to reposition; click to open the todo list",
   "settingsTitle": "Settings",
   "appearanceSectionTitle": "Appearance",
+  "languageSectionTitle": "Language",
+  "languageSystemTooltip": "Follow system",
+  "languageSimplifiedChineseTooltip": "Simplified Chinese",
+  "languageEnglishTooltip": "English",
+  "updatesSectionTitle": "Updates",
+  "currentVersionLabel": "Version {version}",
+  "@currentVersionLabel": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "automaticUpdateChecksLabel": "Automatically check for updates",
+  "automaticUpdateChecksDescription": "Checks daily and asks before installing",
+  "checkForUpdatesButton": "Check for updates",
+  "checkingForUpdatesButton": "Checking…",
+  "updateSettingsLoadError": "Update settings are unavailable.",
+  "updateSettingsSaveError": "Couldn't change update settings.",
+  "updateCheckError": "Couldn't check for updates.",
   "workingDirectorySectionTitle": "Working directory",
   "workingDirectorySemantics": "Working directory: {path}",
   "@workingDirectorySemantics": {
