@@ -65,6 +65,17 @@ void main() {
     expect(controller.isChecking, isFalse);
     expect(controller.error, isNull);
   });
+
+  test('unavailable first-release feed becomes a friendly status', () async {
+    await controller.load();
+    repository.feedUnavailable = true;
+
+    await controller.checkForUpdates();
+
+    expect(repository.checkCount, 1);
+    expect(controller.isChecking, isFalse);
+    expect(controller.error, UpdateFailureKind.feedUnavailable);
+  });
 }
 
 class _MemoryUpdateRepository implements UpdateRepository {
@@ -74,6 +85,7 @@ class _MemoryUpdateRepository implements UpdateRepository {
   );
   Completer<void>? pendingSave;
   bool failNextSave = false;
+  bool feedUnavailable = false;
   int checkCount = 0;
 
   @override
@@ -99,5 +111,8 @@ class _MemoryUpdateRepository implements UpdateRepository {
   @override
   Future<void> checkForUpdates() async {
     checkCount += 1;
+    if (feedUnavailable) {
+      throw const UpdateFeedUnavailableException();
+    }
   }
 }

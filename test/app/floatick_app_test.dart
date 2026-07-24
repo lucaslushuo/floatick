@@ -89,7 +89,7 @@ void main() {
     expect(find.text('设置'), findsOneWidget);
     expect(find.text('语言'), findsOneWidget);
     expect(find.text('更新'), findsOneWidget);
-    expect(find.text('版本 0.1.0'), findsOneWidget);
+    expect(find.text('v0.1.0'), findsOneWidget);
     expect(find.text('工作目录'), findsOneWidget);
     expect(find.text('/tmp/floatick-widget-test'), findsOneWidget);
     expect(find.byIcon(Icons.folder_open_rounded), findsNothing);
@@ -106,6 +106,18 @@ void main() {
     expect(find.byKey(const Key('language-en')), findsOneWidget);
     expect(find.byKey(const Key('automatic-update-checks')), findsOneWidget);
     expect(find.byKey(const Key('check-for-updates')), findsOneWidget);
+    expect(find.text('每天检查一次，安装前会询问你'), findsNothing);
+    expect(find.text('自动检查'), findsOneWidget);
+    expect(find.text('立即检查'), findsOneWidget);
+    expect(find.byType(Switch), findsNothing);
+    expect(
+      tester.getSize(find.byKey(const Key('automatic-update-toggle'))),
+      const Size(32, 18),
+    );
+    expect(
+      tester.getSize(find.byKey(const Key('update-settings-section'))).height,
+      lessThan(105),
+    );
     expect(
       tester
           .widget<AnimatedSlide>(find.byKey(const Key('settings-drawer-slide')))
@@ -137,6 +149,12 @@ void main() {
     await tester.tap(find.byKey(const Key('check-for-updates')));
     await tester.pumpAndSettle();
     expect(updateRepository.checkCount, 1);
+
+    updateRepository.feedUnavailable = true;
+    await tester.tap(find.byKey(const Key('check-for-updates')));
+    await tester.pumpAndSettle();
+    expect(find.text('更新服务暂未就绪。'), findsOneWidget);
+    expect(find.byType(Dialog), findsNothing);
 
     await tester.tap(find.byKey(const Key('theme-dark')));
     await tester.pumpAndSettle();
@@ -299,7 +317,9 @@ void main() {
     expect(find.text('Appearance'), findsOneWidget);
     expect(find.text('Language'), findsOneWidget);
     expect(find.text('Updates'), findsOneWidget);
-    expect(find.text('Version 0.1.0'), findsOneWidget);
+    expect(find.text('v0.1.0'), findsOneWidget);
+    expect(find.text('Automatic checks'), findsOneWidget);
+    expect(find.text('Check now'), findsOneWidget);
     expect(find.text('Working directory'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
@@ -409,6 +429,7 @@ class _WidgetTestRepository implements TodoRepository {
 
 class _WidgetTestUpdateRepository implements UpdateRepository {
   bool automaticallyChecksForUpdates = true;
+  bool feedUnavailable = false;
   int checkCount = 0;
 
   @override
@@ -427,6 +448,9 @@ class _WidgetTestUpdateRepository implements UpdateRepository {
   @override
   Future<void> checkForUpdates() async {
     checkCount += 1;
+    if (feedUnavailable) {
+      throw const UpdateFeedUnavailableException();
+    }
   }
 }
 

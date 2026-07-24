@@ -40,20 +40,17 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String currentVersionLabel(String version) {
-    return '版本 $version';
+    return 'v$version';
   }
 
   @override
-  String get automaticUpdateChecksLabel => '自动检查更新';
+  String get automaticUpdateChecksLabel => '自动检查';
 
   @override
-  String get automaticUpdateChecksDescription => '每天检查一次，安装前会询问你';
+  String get checkForUpdatesButton => '立即检查';
 
   @override
-  String get checkForUpdatesButton => '检查更新';
-
-  @override
-  String get checkingForUpdatesButton => '正在检查…';
+  String get checkingForUpdatesButton => '检查中…';
 
   @override
   String get updateSettingsLoadError => '暂时无法读取更新设置。';
@@ -63,6 +60,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get updateCheckError => '暂时无法检查更新。';
+
+  @override
+  String get updateFeedUnavailable => '更新服务暂未就绪。';
 
   @override
   String get workingDirectorySectionTitle => '工作目录';

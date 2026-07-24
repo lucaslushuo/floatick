@@ -10,6 +10,10 @@ abstract interface class UpdateRepository {
   Future<void> checkForUpdates();
 }
 
+final class UpdateFeedUnavailableException implements Exception {
+  const UpdateFeedUnavailableException();
+}
+
 class MethodChannelUpdateRepository implements UpdateRepository {
   static const MethodChannel _channel = MethodChannel('floatick/update');
 
@@ -28,7 +32,14 @@ class MethodChannelUpdateRepository implements UpdateRepository {
   }
 
   @override
-  Future<void> checkForUpdates() {
-    return _channel.invokeMethod<void>('checkForUpdates');
+  Future<void> checkForUpdates() async {
+    try {
+      await _channel.invokeMethod<void>('checkForUpdates');
+    } on PlatformException catch (error) {
+      if (error.code == 'update_feed_unavailable') {
+        throw const UpdateFeedUnavailableException();
+      }
+      rethrow;
+    }
   }
 }

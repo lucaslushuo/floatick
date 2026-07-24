@@ -2,7 +2,7 @@ import 'package:flutter/foundation.dart';
 
 import '../data/update_repository.dart';
 
-enum UpdateFailureKind { loadSettings, saveSettings, check }
+enum UpdateFailureKind { loadSettings, saveSettings, check, feedUnavailable }
 
 class UpdateViewModel extends ChangeNotifier {
   UpdateViewModel({required UpdateRepository updateRepository})
@@ -78,6 +78,8 @@ class UpdateViewModel extends ChangeNotifier {
 
     try {
       await _repository.checkForUpdates();
+    } on UpdateFeedUnavailableException {
+      _error = UpdateFailureKind.feedUnavailable;
     } on Object catch (error, stackTrace) {
       _error = UpdateFailureKind.check;
       debugPrint('Floatick could not check for updates: $error');
