@@ -10,7 +10,7 @@
   "languageSimplifiedChineseTooltip": "Simplified Chinese",
   "languageEnglishTooltip": "English",
   "updatesSectionTitle": "Updates",
-  "currentVersionLabel": "Version {version}",
+  "currentVersionLabel": "v{version}",
   "@currentVersionLabel": {
     "placeholders": {
       "version": {
@@ -18,13 +18,13 @@
       }
     }
   },
-  "automaticUpdateChecksLabel": "Automatically check for updates",
-  "automaticUpdateChecksDescription": "Checks daily and asks before installing",
-  "checkForUpdatesButton": "Check for updates",
+  "automaticUpdateChecksLabel": "Automatic checks",
+  "checkForUpdatesButton": "Check now",
   "checkingForUpdatesButton": "Checking…",
   "updateSettingsLoadError": "Update settings are unavailable.",
   "updateSettingsSaveError": "Couldn't change update settings.",
   "updateCheckError": "Couldn't check for updates.",
+  "updateFeedUnavailable": "Update service isn't ready yet.",
   "workingDirectorySectionTitle": "Working directory",
   "workingDirectorySemantics": "Working directory: {path}",
   "@workingDirectorySemantics": {

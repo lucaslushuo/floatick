@@ -40,18 +40,14 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String currentVersionLabel(String version) {
-    return 'Version $version';
+    return 'v$version';
   }
 
   @override
-  String get automaticUpdateChecksLabel => 'Automatically check for updates';
+  String get automaticUpdateChecksLabel => 'Automatic checks';
 
   @override
-  String get automaticUpdateChecksDescription =>
-      'Checks daily and asks before installing';
-
-  @override
-  String get checkForUpdatesButton => 'Check for updates';
+  String get checkForUpdatesButton => 'Check now';
 
   @override
   String get checkingForUpdatesButton => 'Checking…';
@@ -64,6 +60,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get updateCheckError => 'Couldn\'t check for updates.';
+
+  @override
+  String get updateFeedUnavailable => 'Update service isn\'t ready yet.';
 
   @override
   String get workingDirectorySectionTitle => 'Working directory';

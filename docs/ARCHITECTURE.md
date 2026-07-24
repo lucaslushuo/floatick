@@ -78,6 +78,12 @@ application directory. Sparkle owns its automatic-check preference in the
 standard macOS application `UserDefaults`; Floatick does not duplicate that
 preference in `settings.json`.
 
+Manual update checks probe the configured appcast URL before presenting
+Sparkle. An unpublished first-release feed is mapped across the platform
+channel to a typed, informational state in Settings; other connectivity
+failures remain recoverable errors. Sparkle still owns appcast parsing,
+signature validation, download, and installation once the feed is available.
+
 Writes are serialized by `TodoViewModel` to prevent overlapping mutations from
 losing updates. A write failure leaves the last persisted in-memory state
 unchanged and exposes a recoverable UI error.

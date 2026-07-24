@@ -86,7 +86,10 @@ Download the DMG from the Draft Release and verify at least:
 - create, edit, complete, search, archive, and restore work;
 - Chinese, English, system/light/dark themes, and Settings persistence work;
 - relaunch preserves `~/.floatick` data;
-- manual “Check for updates” opens Sparkle's native result;
+- before the first stable release, manual update checks show the compact
+  unavailable status instead of Sparkle's network error;
+- after the first appcast is published, manual “Check for updates” opens
+  Sparkle's native result;
 - CPU and memory remain reasonable with a long todo list;
 - both architecture slices exist, with an Apple silicon launch test and a
   Rosetta launch smoke test when available.

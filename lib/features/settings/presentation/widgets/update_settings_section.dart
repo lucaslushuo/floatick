@@ -5,6 +5,12 @@ import 'package:flutter/material.dart';
 import '../../../../l10n/l10n.dart';
 import '../../../updates/presentation/update_view_model.dart';
 
+const _updateRowHeight = 34.0;
+const _updateRowRadius = 8.0;
+const _compactToggleSize = Size(32, 18);
+const _compactToggleThumbSize = 14.0;
+const _interactionDuration = Duration(milliseconds: 140);
+
 class UpdateSettingsSection extends StatelessWidget {
   const UpdateSettingsSection({required this.viewModel, super.key});
 
@@ -24,10 +30,15 @@ class UpdateSettingsSection extends StatelessWidget {
           UpdateFailureKind.saveSettings =>
             localizations.updateSettingsSaveError,
           UpdateFailureKind.check => localizations.updateCheckError,
+          UpdateFailureKind.feedUnavailable =>
+            localizations.updateFeedUnavailable,
           null => null,
         };
+        final isInformational =
+            viewModel.error == UpdateFailureKind.feedUnavailable;
 
         return Column(
+          key: const Key('update-settings-section'),
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
             Row(
@@ -49,80 +60,56 @@ class UpdateSettingsSection extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 10),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: <Widget>[
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      Text(
-                        localizations.automaticUpdateChecksLabel,
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          fontWeight: FontWeight.w500,
+            const SizedBox(height: 6),
+            _UpdateSettingRow(
+              key: const Key('automatic-update-checks'),
+              label: localizations.automaticUpdateChecksLabel,
+              toggled: viewModel.automaticallyChecksForUpdates,
+              onPressed: viewModel.isLoading || viewModel.isSaving
+                  ? null
+                  : () {
+                      unawaited(
+                        viewModel.setAutomaticallyChecksForUpdates(
+                          !viewModel.automaticallyChecksForUpdates,
                         ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        localizations.automaticUpdateChecksDescription,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: colorScheme.onSurface.withValues(alpha: 0.55),
-                          height: 1.35,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Semantics(
-                  label: localizations.automaticUpdateChecksLabel,
-                  toggled: viewModel.automaticallyChecksForUpdates,
-                  child: ExcludeSemantics(
-                    child: Switch.adaptive(
-                      key: const Key('automatic-update-checks'),
-                      value: viewModel.automaticallyChecksForUpdates,
-                      onChanged: viewModel.isLoading || viewModel.isSaving
-                          ? null
-                          : (enabled) {
-                              unawaited(
-                                viewModel.setAutomaticallyChecksForUpdates(
-                                  enabled,
-                                ),
-                              );
-                            },
-                    ),
-                  ),
-                ),
-              ],
+                      );
+                    },
+              trailing: _CompactToggle(
+                key: const Key('automatic-update-toggle'),
+                value: viewModel.automaticallyChecksForUpdates,
+                enabled: !viewModel.isLoading && !viewModel.isSaving,
+              ),
             ),
-            const SizedBox(height: 8),
-            TextButton.icon(
+            const SizedBox(height: 2),
+            _UpdateSettingRow(
               key: const Key('check-for-updates'),
               onPressed: viewModel.isLoading || viewModel.isChecking
                   ? null
                   : () {
                       unawaited(viewModel.checkForUpdates());
                     },
-              icon: viewModel.isChecking
+              label: viewModel.isChecking
+                  ? localizations.checkingForUpdatesButton
+                  : localizations.checkForUpdatesButton,
+              trailing: viewModel.isChecking
                   ? SizedBox.square(
-                      dimension: 15,
+                      dimension: 16,
                       child: CircularProgressIndicator(
-                        strokeWidth: 1.8,
+                        strokeWidth: 1.6,
                         color: colorScheme.primary,
                       ),
                     )
-                  : const Icon(Icons.refresh_rounded, size: 18),
-              label: Text(
-                viewModel.isChecking
-                    ? localizations.checkingForUpdatesButton
-                    : localizations.checkForUpdatesButton,
-              ),
+                  : Icon(
+                      Icons.refresh_rounded,
+                      size: 17,
+                      color: colorScheme.primary,
+                    ),
             ),
             if (errorMessage != null) ...[
-              const SizedBox(height: 8),
-              _UpdateSettingsError(
+              const SizedBox(height: 4),
+              _UpdateStatus(
                 message: errorMessage,
+                informational: isInformational,
                 onDismiss: viewModel.dismissError,
               ),
             ],
@@ -133,50 +120,165 @@ class UpdateSettingsSection extends StatelessWidget {
   }
 }
 
-class _UpdateSettingsError extends StatelessWidget {
-  const _UpdateSettingsError({required this.message, required this.onDismiss});
+class _UpdateSettingRow extends StatelessWidget {
+  const _UpdateSettingRow({
+    required this.label,
+    required this.trailing,
+    required this.onPressed,
+    this.toggled,
+    super.key,
+  });
+
+  final String label;
+  final Widget trailing;
+  final VoidCallback? onPressed;
+  final bool? toggled;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Semantics(
+      button: toggled == null,
+      enabled: onPressed != null,
+      label: label,
+      toggled: toggled,
+      child: ExcludeSemantics(
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(_updateRowRadius),
+            hoverColor: theme.colorScheme.primary.withValues(alpha: 0.06),
+            highlightColor: theme.colorScheme.primary.withValues(alpha: 0.10),
+            onTap: onPressed,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: _updateRowHeight),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: Row(
+                  children: <Widget>[
+                    Expanded(
+                      child: Text(
+                        label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: onPressed == null
+                              ? theme.colorScheme.onSurface.withValues(
+                                  alpha: 0.38,
+                                )
+                              : null,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    trailing,
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CompactToggle extends StatelessWidget {
+  const _CompactToggle({required this.value, required this.enabled, super.key});
+
+  final bool value;
+  final bool enabled;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final activeTrack = colorScheme.primary;
+    final inactiveTrack = colorScheme.onSurface.withValues(alpha: 0.18);
+
+    return Opacity(
+      opacity: enabled ? 1 : 0.5,
+      child: SizedBox.fromSize(
+        size: _compactToggleSize,
+        child: AnimatedContainer(
+          duration: _interactionDuration,
+          curve: Curves.easeOutCubic,
+          padding: const EdgeInsets.all(2),
+          decoration: BoxDecoration(
+            color: value ? activeTrack : inactiveTrack,
+            borderRadius: BorderRadius.circular(_compactToggleSize.height / 2),
+          ),
+          child: AnimatedAlign(
+            duration: _interactionDuration,
+            curve: Curves.easeOutCubic,
+            alignment: value ? Alignment.centerRight : Alignment.centerLeft,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: value
+                    ? colorScheme.onPrimary
+                    : colorScheme.surfaceContainerHighest,
+                shape: BoxShape.circle,
+              ),
+              child: const SizedBox.square(dimension: _compactToggleThumbSize),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _UpdateStatus extends StatelessWidget {
+  const _UpdateStatus({
+    required this.message,
+    required this.informational,
+    required this.onDismiss,
+  });
 
   final String message;
+  final bool informational;
   final VoidCallback onDismiss;
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: colorScheme.errorContainer.withValues(alpha: 0.72),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(10, 7, 4, 7),
-        child: Row(
-          children: <Widget>[
-            Icon(
-              Icons.error_outline_rounded,
-              size: 16,
-              color: colorScheme.onErrorContainer,
-            ),
-            const SizedBox(width: 7),
-            Expanded(
-              child: Text(
-                message,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: colorScheme.onErrorContainer,
-                ),
+    final foregroundColor = informational
+        ? colorScheme.onSurface.withValues(alpha: 0.58)
+        : colorScheme.error;
+
+    return Padding(
+      padding: const EdgeInsets.only(left: 4),
+      child: Row(
+        children: <Widget>[
+          Icon(
+            informational
+                ? Icons.info_outline_rounded
+                : Icons.error_outline_rounded,
+            size: 14,
+            color: foregroundColor,
+          ),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              message,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                color: foregroundColor,
+                height: 1.25,
               ),
             ),
-            IconButton(
-              tooltip: context.l10n.dismissErrorTooltip,
-              onPressed: onDismiss,
-              visualDensity: VisualDensity.compact,
-              icon: Icon(
-                Icons.close_rounded,
-                size: 16,
-                color: colorScheme.onErrorContainer,
-              ),
-            ),
-          ],
-        ),
+          ),
+          IconButton(
+            tooltip: context.l10n.dismissErrorTooltip,
+            onPressed: onDismiss,
+            visualDensity: VisualDensity.compact,
+            constraints: const BoxConstraints.tightFor(width: 28, height: 28),
+            padding: EdgeInsets.zero,
+            icon: Icon(Icons.close_rounded, size: 14, color: foregroundColor),
+          ),
+        ],
       ),
     );
   }

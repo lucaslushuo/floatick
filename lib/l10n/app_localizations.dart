@@ -161,25 +161,19 @@ abstract class AppLocalizations {
   /// No description provided for @currentVersionLabel.
   ///
   /// In en, this message translates to:
-  /// **'Version {version}'**
+  /// **'v{version}'**
   String currentVersionLabel(String version);
 
   /// No description provided for @automaticUpdateChecksLabel.
   ///
   /// In en, this message translates to:
-  /// **'Automatically check for updates'**
+  /// **'Automatic checks'**
   String get automaticUpdateChecksLabel;
-
-  /// No description provided for @automaticUpdateChecksDescription.
-  ///
-  /// In en, this message translates to:
-  /// **'Checks daily and asks before installing'**
-  String get automaticUpdateChecksDescription;
 
   /// No description provided for @checkForUpdatesButton.
   ///
   /// In en, this message translates to:
-  /// **'Check for updates'**
+  /// **'Check now'**
   String get checkForUpdatesButton;
 
   /// No description provided for @checkingForUpdatesButton.
@@ -205,6 +199,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Couldn\'t check for updates.'**
   String get updateCheckError;
+
+  /// No description provided for @updateFeedUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Update service isn\'t ready yet.'**
+  String get updateFeedUnavailable;
 
   /// No description provided for @workingDirectorySectionTitle.
   ///
