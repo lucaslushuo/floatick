@@ -1,97 +1,177 @@
-# Floatick
+<div align="center">
+  <img
+    src="./macos/Runner/Assets.xcassets/AppIcon.appiconset/app_icon_256.png"
+    width="128"
+    height="128"
+    alt="Floatick app icon"
+  />
+  <h1>Floatick</h1>
+  <p><strong>A calm, local-first floating todo list for macOS.</strong></p>
+  <p>
+    Keep tasks one click away without giving up your desktop or your data.
+  </p>
+  <p>
+    <a href="https://github.com/lucaslushuo/floatick/actions/workflows/ci.yml">
+      <img src="https://github.com/lucaslushuo/floatick/actions/workflows/ci.yml/badge.svg" alt="CI status" />
+    </a>
+    <img src="https://img.shields.io/badge/macOS-10.15%2B-111111?logo=apple" alt="macOS 10.15 or later" />
+    <img src="https://img.shields.io/badge/Flutter-3.44.7-02569B?logo=flutter" alt="Flutter 3.44.7" />
+    <a href="./LICENSE">
+      <img src="https://img.shields.io/badge/license-MIT-2CCCBD" alt="MIT license" />
+    </a>
+  </p>
+  <p>
+    <strong>English</strong> · <a href="./README.zh-CN.md">简体中文</a>
+  </p>
+</div>
 
-Floatick 是一个 Flutter + AppKit 实现的 macOS 悬浮待办应用。折叠时显示为
-可拖动的大图标，点击后由原生窗口平滑展开为完整待办列表。
+Floatick rests above your workspace as a small, draggable icon. Click it and the
+icon expands into a focused todo panel; collapse it and the icon returns to the
+same anchor. The panel chooses its expansion direction from the available screen
+space, so it stays useful near any display edge.
 
-> 当前仅支持 macOS，数据完全保存在本机，无账号、无云端依赖。
+## Highlights
 
-## 温馨提示
+- **Always within reach** — drag the floating icon anywhere, then click to open.
+- **Fast task flow** — create, edit, complete, search, archive, restore, and
+  organize tasks in automatic daily sections.
+- **Local by default** — no account, cloud service, or telemetry. Your todo data
+  remains in `~/.floatick`.
+- **Made for macOS** — transparent AppKit window behavior, keyboard shortcuts,
+  context-menu Quit, and support for Reduce Motion.
+- **Comfortable in any workspace** — system, light, and dark themes with English
+  and Simplified Chinese.
+- **Built-in updates** — automatic and manual update checks powered by Sparkle.
 
-Floatick 目前仍处于早期版本。第一次打开时，如果 macOS 需要额外确认，
-按照下面几步操作即可：
+## Download
 
-1. 先尝试打开一次 Floatick。
-2. 打开“系统设置”→“隐私与安全”。
-3. 在“安全性”区域找到 Floatick，点击“仍要打开”。
-4. 再次确认“打开”，并按提示输入 Mac 登录密码。
+Download the latest DMG from
+[GitHub Releases](https://github.com/lucaslushuo/floatick/releases), open it,
+and drag Floatick into `Applications`. Release packages are universal binaries
+for both Apple silicon and Intel Macs.
 
-完成一次确认后，后续就可以正常启动。建议从本仓库的
-[Releases](https://github.com/lucaslushuo/floatick/releases) 页面下载。
-具体界面可能随 macOS 版本略有不同，详情参见
-[Apple 官方说明](https://support.apple.com/guide/mac-help/open-a-mac-app-from-an-unknown-developer-mh40616/mac)。
+### A quick first-launch note
 
-## 功能
+Floatick is still an early preview and current downloads are not yet signed and
+notarized with an Apple Developer ID. macOS may ask for one extra confirmation
+the first time you open it:
 
-- 随时新建、勾选和归档待办
-- 按年月日自动分组
-- 搜索当前待办或归档内容
-- 从归档恢复待办
-- 设置中支持跟随系统、浅色和深色主题
-- 设置中支持跟随系统、简体中文和英文
-- 支持自动检查更新和手动“检查更新”
-- 支持 macOS“减少动态效果”
-- `⌘F` 搜索、`⌘N` 新建、`Esc` 收起
-- 待办仅保存在 `~/.floatick/todos.json`
-- 界面设置保存在 `~/.floatick/settings.json`
-- 更新检查偏好由 Sparkle 保存在 macOS 标准应用偏好中
+1. Try to open Floatick once.
+2. Open **System Settings → Privacy & Security**.
+3. Find Floatick in the **Security** section and choose **Open Anyway**.
+4. Confirm **Open**.
 
-## 架构
+This confirmation is normally needed only once. For more detail, see
+[Apple's guide to opening an app from an unidentified developer](https://support.apple.com/guide/mac-help/open-a-mac-app-from-an-unknown-developer-mh40616/mac).
+Only download Floatick from this repository's Releases page.
 
-- `lib/app`：应用装配与主题
-- `lib/features`：按 todo、settings 功能划分的 data/domain/presentation
-- `lib/core`：原生窗口桥接和跨功能 UI 基元
-- `macos/Runner`：透明窗口行为与 Sparkle 原生更新服务
-- MethodChannel：传递窗口和更新命令，不承载待办业务数据
+## Everyday use
 
-本地 JSON 数据统一保存在 `~/.floatick`，应用不会读取或写入其他隐藏目录。
-详细依赖边界见 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)。
+| Action | How |
+| --- | --- |
+| Reposition Floatick | Drag the floating icon |
+| Open the todo list | Click the floating icon |
+| Collapse the panel | Click the collapse button or press `Esc` |
+| Create a todo | Press `⌘N`, or use the input at the top |
+| Search | Press `⌘F` |
+| Edit a todo | Hover over the item and choose Edit |
+| Complete a todo | Select its checkbox |
+| Archive or restore | Use the action at the end of the item |
+| Quit Floatick | Right-click the floating icon and choose Quit |
 
-## 开发
+## Local data and privacy
 
-需要 Flutter 3.44 或更高版本，以及完整安装并完成首次配置的 Xcode。
+Floatick creates its working directory on first launch:
+
+| Path | Purpose |
+| --- | --- |
+| `~/.floatick/todos.json` | Todos, completion state, and archive state |
+| `~/.floatick/settings.json` | Theme and language preferences |
+
+Sparkle stores the automatic-update preference in standard macOS application
+preferences. Floatick does not require an account and does not upload your todo
+data. Network access is used only to check for and download application updates.
+
+## Development
+
+### Requirements
+
+- macOS 10.15 or later
+- Flutter `3.44.7`
+- A complete Xcode installation
+
+### Run locally
 
 ```bash
 flutter pub get
 flutter run -d macos
 ```
 
-如果 `flutter doctor -v` 提示 Xcode 未完成安装，请先安装完整 Xcode，然后执行：
+If Flutter cannot find Xcode, finish Xcode's first-launch setup:
 
 ```bash
 sudo xcode-select --switch /Applications/Xcode.app/Contents/Developer
 sudo xcodebuild -runFirstLaunch
 ```
 
-日常开发使用短期 `feature/*`、`fix/*` 分支并通过 Pull Request 合并到
-`main`。`release/x.y.z` 分支只生成供维护者验收的 Draft Release；只有已经
-进入 `main` 历史的同一候选提交打上 `vX.Y.Z` 标签后，才会发布正式 Release。
-先阅读简明的[开发与发布流程](docs/DEVELOPMENT_WORKFLOW.md)，完整候选版验收
-细节见 [docs/RELEASING.md](docs/RELEASING.md)。
-
-## 测试
+### Verify a change
 
 ```bash
+dart format --output=none --set-exit-if-changed lib test
+flutter analyze
 flutter test
-```
-
-## 构建
-
-```bash
 flutter build macos --release
 ```
 
-构建产物位于 `build/macos/Build/Products/Release/Floatick.app`。推送
-`release/x.y.z` 分支后，GitHub Actions 会构建 universal DMG、生成
-SHA-256 和构建清单，并更新仅维护者可见的 Draft Release。人工验收通过后，
-对同一候选提交推送 `vX.Y.Z` 标签，工作流会直接晋级已测试的 DMG，不会重新
-构建；经过 `production` 人工审批后，才会使用 Sparkle EdDSA 签名 appcast、
-发布正式 Release，并将更新信息部署到 GitHub Pages。
+The release app is written to
+`build/macos/Build/Products/Release/Floatick.app`.
 
-当前版本首次打开时可能需要按照本文顶部的说明完成一次确认。未来完成
-Apple Developer 签名后，用户即可直接打开。首次安装包含 Sparkle 的版本
-后，后续更新可以在应用内完成。发布流程见
-[docs/RELEASING.md](docs/RELEASING.md)。
+## Project structure
+
+```text
+lib/
+  app/          App composition and themes
+  core/         Shared platform, storage, and UI primitives
+  features/     Todo, settings, and update features
+  l10n/         English and Simplified Chinese resources
+macos/Runner/   AppKit window shell and Sparkle integration
+test/           Repository, ViewModel, and widget tests
+tool/           Icon and release tooling
+```
+
+Flutter owns product UI and state. A small AppKit shell owns macOS-specific
+window behavior and Sparkle. Todo data never crosses the platform channel.
+See [Architecture](./docs/ARCHITECTURE.md) for the dependency boundaries.
+
+## Development and release model
+
+```mermaid
+flowchart LR
+    A["feature/* or fix/*"] --> B["Pull request"]
+    B --> C["main"]
+    C --> D["release/x.y.z"]
+    D --> E["Private Draft candidate"]
+    E --> F["Manual acceptance"]
+    F --> G["vX.Y.Z + production approval"]
+    G --> H["Public Release + Sparkle appcast"]
+```
+
+Daily work reaches `main` through pull requests. A `release/x.y.z` branch builds
+a private Draft candidate for manual testing. A stable `vX.Y.Z` tag promotes
+the exact accepted DMG after production approval; the release workflow does not
+rebuild it.
+
+Read the [development and release workflow](./docs/RELEASING.md) before
+preparing a release.
+
+## Contributing
+
+[Issues](https://github.com/lucaslushuo/floatick/issues) and focused pull
+requests are welcome. Please keep changes scoped, add tests for meaningful
+behavior, and preserve the local JSON data contract.
 
 ## License
 
-[MIT](LICENSE) © 2026 lucaslushuo
+Floatick is available under the [MIT License](./LICENSE).
+
+© 2026 lucaslushuo
