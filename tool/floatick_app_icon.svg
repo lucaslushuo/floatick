@@ -17,20 +17,22 @@
     stroke="#40575A"
     stroke-width="18"
   />
-  <path
-    d="M225 512 C276 553 317 604 369 655 C420 604 481 532 543 471"
-    fill="none"
-    stroke="#1DB3A8"
-    stroke-width="72"
-    stroke-linecap="round"
-    stroke-linejoin="round"
-  />
-  <path
-    d="M389 512 C440 563 481 614 532 655 C614 563 696 471 788 379"
-    fill="none"
-    stroke="#2CCCBD"
-    stroke-width="72"
-    stroke-linecap="round"
-    stroke-linejoin="round"
-  />
+  <g transform="translate(512 512) scale(1.1) translate(-512 -512)">
+    <path
+      d="M225 512 C276 553 317 604 369 655 C420 604 481 532 543 471"
+      fill="none"
+      stroke="#1DB3A8"
+      stroke-width="72"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    />
+    <path
+      d="M389 512 C440 563 481 614 532 655 C614 563 696 471 788 379"
+      fill="none"
+      stroke="#2CCCBD"
+      stroke-width="72"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    />
+  </g>
 </svg>
